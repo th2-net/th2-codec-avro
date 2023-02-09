@@ -1,0 +1,63 @@
+{
+  "type": "record",
+  "name": "test_message",
+  "fields": [
+    {
+      "name": "intField",
+      "type": "int"
+    },
+    {
+      "name": "longField",
+      "type": "long"
+    },
+    {
+      "name": "booleanField",
+      "type": "boolean"
+    },
+    {
+      "name": "floatField",
+      "type": "float"
+    },
+    {
+      "name": "doubleField",
+      "type": "double"
+    },
+    {
+      "name": "stringField",
+      "type": "string"
+    },
+    {
+      "name": "stringArray",
+      "type": {
+        "type": "array",
+        "items": "string"
+      }
+    },
+    {
+      "name": "recordArray",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "submessage",
+          "fields": [{
+            "type": "string",
+            "name": "subField"
+          }]
+        }
+      }
+    },
+    {
+      "name": "subMessage",
+      "type": {
+        "type" : "record",
+        "name" : "subRecord",
+        "fields" : [
+          {"name": "stringType", "type": "string"},
+          {"name": "longType", "type": "long"}
+        ]
+      }
+    }
+
+  ]
+}
