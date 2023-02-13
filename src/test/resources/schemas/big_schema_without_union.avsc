@@ -1,0 +1,63 @@
+{
+  "type" : "record",
+  "name" : "recordAll",
+  "fields" : [ {
+    "name" : "requiredBoolean",
+    "type" : "boolean"
+  }, {
+    "name" : "requiredBooleanWithDefault",
+    "type" : "boolean",
+    "default" : true
+  }, {
+         "name" : "requiredBytes",
+         "type" : "bytes"
+  },{
+    "name" : "requiredInt",
+    "type" : "int"
+  }, {
+    "name" : "requiredLong",
+    "type" : "long"
+  }, {
+    "name" : "requiredDouble",
+    "type" : "double"
+  },{
+    "name" : "requiredString",
+    "type" : "string"
+  },{
+    "name" : "requiredRecord",
+    "type" : {
+      "type" : "record",
+      "name" : "nestedRequiredRecord",
+      "fields" : [ {
+        "name" : "nestedRequiredBoolean",
+        "type" : "boolean"
+      } ]
+    }
+  }, {
+    "name" : "requiredEnum",
+    "type" : {
+      "type" : "enum",
+      "name" : "requiredEnum",
+      "symbols" : [ "a", "b" ]
+    }
+  },{
+    "name" : "requiredArray",
+    "type" : {
+      "type" : "array",
+      "items" : "string"
+    }
+  },{
+    "name" : "requiredMap",
+    "type" : {
+      "type" : "map",
+      "values" : "string"
+    }
+  }, {
+    "name" : "requiredFixed",
+    "type" : {
+      "type" : "fixed",
+      "name" : "requiredFixed",
+      "size" : 1
+    }
+  }]
+}
