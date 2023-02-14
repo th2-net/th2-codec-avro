@@ -16,8 +16,6 @@
 package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.api.IPipelineCodecSettings
-import com.google.auto.service.AutoService
 
-@AutoService(IPipelineCodecSettings::class)
 class AvroCodecSettings: IPipelineCodecSettings {
 }

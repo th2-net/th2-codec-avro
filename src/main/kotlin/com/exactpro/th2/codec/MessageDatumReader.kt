@@ -22,7 +22,6 @@ import org.apache.avro.Conversion
 import org.apache.avro.LogicalType
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericDatumReader
-import org.apache.avro.generic.GenericFixed
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
 import java.io.IOException
@@ -50,7 +49,7 @@ class MessageDatumReader(schema: Schema?) :
 
     @Throws(IOException::class)
     override fun readRecord(old: Any?, expected: Schema, decoder: ResolvingDecoder): Message.Builder {
-        val r = newRecord(old, expected)
+        val r = createRecord()
         for (f in decoder.readFieldOrder()) {
             readField(r, f, old, decoder, null)
         }
@@ -62,12 +61,10 @@ class MessageDatumReader(schema: Schema?) :
         val readValue = read(oldDatum, f.schema(), decoder)
         if (readValue != null) {
             (r as Message.Builder).addField(f.name(), readValue.toValue())
-            println(readValue.javaClass)
-            println("${f.name()} to ${readValue.toValue()}")
         }
     }
 
-    public override fun newRecord(old: Any?, schema: Schema): Message.Builder {
+     private fun createRecord(): Message.Builder {
         return Message.newBuilder()
     }
 
@@ -93,8 +90,9 @@ class MessageDatumReader(schema: Schema?) :
 
     @Throws(IOException::class)
     override fun readFixed(old: Any?, expected: Schema, decoder: Decoder): String {
-        val fixed = super.readFixed(old, expected, decoder) as GenericFixed
-        return byteArrayToHEXString(fixed.bytes())
+        val bytes = ByteArray(expected.fixedSize)
+        decoder.readFixed(bytes, 0, expected.fixedSize)
+        return byteArrayToHEXString(bytes)
     }
 
     private fun byteArrayToHEXString(bytes: ByteArray) = DatatypeConverter.printHexBinary(bytes)

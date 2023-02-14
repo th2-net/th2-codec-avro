@@ -10,7 +10,7 @@ apply plugin: 'com.palantir.docker'
 apply plugin: 'kotlin-kapt'
 
 ext {
-    sailfishVersion = '3.3.49'
+    sailfishVersion = '3.3.54'
 }
 ext.excludeSailfish = { rcd ->
     rcd.excludeModule("com.exactpro.sf", "sailfish-common")
@@ -93,9 +93,9 @@ dependencies {
 
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
     implementation 'org.jetbrains.kotlin:kotlin-reflect'
-    implementation 'io.github.microutils:kotlin-logging:2.0.10'
+    implementation 'io.github.microutils:kotlin-logging:3.0.0'
 
-    testImplementation "org.junit.jupiter:junit-jupiter:5.6.2"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.9.0"
     testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5:1.6.21'
 
     kapt 'com.google.auto.service:auto-service:1.0.1'
