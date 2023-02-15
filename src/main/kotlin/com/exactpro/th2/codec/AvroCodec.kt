@@ -24,6 +24,7 @@ import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.RawMessage
 import com.google.protobuf.ByteString
 import com.google.protobuf.UnsafeByteOperations
+import io.netty.buffer.ByteBufUtil
 import io.netty.buffer.Unpooled
 import org.apache.avro.Schema
 import org.apache.avro.io.Decoder
@@ -33,13 +34,17 @@ import org.apache.avro.io.EncoderFactory
 import org.apache.commons.codec.EncoderException
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.util.*
 
 class AvroCodec(
-    private val schema: Schema,
+    private val schemaIdToSchema: Map<Int, Schema>,
     settings: AvroCodecSettings
 ) : IPipelineCodec {
-    private val datumReader = MessageDatumReader(schema)
-    private val datumWriter = MessageDatumWriter(schema)
+    private val datumReaders: Map<Int, MessageDatumReader> = schemaIdToSchema.mapValues { MessageDatumReader(it.value) }
+    private val datumWriters: Map<Int, MessageDatumWriter> = schemaIdToSchema.mapValues { MessageDatumWriter(it.value) }
+    private val schemaIdToMessageName: Map<Int, String> = schemaIdToSchema.mapValues { it.value.name }
+    private val messageNameToSchemaId: Map<String, Int> =
+        schemaIdToMessageName.entries.associate { (key, value) -> value to key }
     override fun decode(messageGroup: MessageGroup): MessageGroup {
         val messages = messageGroup.messagesList
 
@@ -57,26 +62,33 @@ class AvroCodec(
             } else {
                 val rawMessage = message.rawMessage
                 val decodeMessage = decodeRawMessage(rawMessage)
-                    .setParentEventId(rawMessage.parentEventId)
-                    .setMetadata(
-                        rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
-                            .setMessageType(AVRO_MESSAGE)
-                    )
-                    .build()
-
                 msgBuilder.addMessages(AnyMessage.newBuilder().setMessage(decodeMessage).build())
             }
         }
         return msgBuilder.build()
     }
 
-    private fun decodeRawMessage(rawMessage: RawMessage): Message.Builder {
+    private fun decodeRawMessage(rawMessage: RawMessage): Message {
         val bytes = rawMessage.body.toByteArray()
-        val decoder: Decoder = DecoderFactory.get().binaryDecoder(bytes, null)
+        val byteBuf = Unpooled.wrappedBuffer(bytes, 0, AVRO_HEADER_SIZE)
+        val magicNumber: Byte = byteBuf.readByte()
+        if (magicNumber.toInt() != MAGIC_BYTE_VALUE) {
+            throw DecodeException("Message starts with not the magic value $MAGIC_BYTE_VALUE, data: ${Arrays.toString(bytes)}")
+        }
+        val schemaId: Int = byteBuf.readInt()
+        val reader = checkNotNull(datumReaders[schemaId]) { "No reader found for schema id: $schemaId" }
+        val decoder: Decoder = DecoderFactory.get().binaryDecoder(bytes, AVRO_HEADER_SIZE, bytes.size - AVRO_HEADER_SIZE, null)
         try {
-            return datumReader.read(Message.newBuilder(), decoder)
+            return reader.read(Message.newBuilder(), decoder)
+                .setParentEventId(rawMessage.parentEventId)
+                .setMetadata(
+                    rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
+                        .setMessageType(checkNotNull(schemaIdToMessageName[schemaId]) { "No message name found for schema id: $schemaId" })
+                )
+                .build()
+
         } catch (e: IOException) {
-            throw DecodeException("Can't parse message data: $bytes by schema: ${schema.fullName}", e)
+            throw DecodeException("Can't parse message data: $bytes by schema id: $schemaId}", e)
         }
     }
 
@@ -112,19 +124,26 @@ class AvroCodec(
     }
 
     private fun encodeMessage(parsedMessage: Message): ByteString? {
+        val messageType = checkNotNull(parsedMessage.metadata.messageType) { "Message type is required. Message $parsedMessage does not have it" }
+        val schemaId = checkNotNull(messageNameToSchemaId[messageType]) { "No schema id found for message type: $messageType" }
+        val writer = checkNotNull(datumWriters[schemaId]) { "No writer found for schema id: $schemaId" }
         val byteArrayOutputStream = ByteArrayOutputStream()
         val encoder: Encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null)
-
         try {
-            datumWriter.write(parsedMessage, encoder)
+            writer.write(parsedMessage, encoder)
         } catch (e: IOException) {
-            throw EncoderException("Can't parse message data: $parsedMessage by schema: ${schema.fullName}", e)
+            throw EncoderException("Can't parse message data: $parsedMessage by schema: ${schemaIdToSchema[schemaId]}", e)
         }
         encoder.flush()
-        return UnsafeByteOperations.unsafeWrap(byteArrayOutputStream.toByteArray())
+        val byteBuf = Unpooled.buffer()
+        byteBuf.writeByte(MAGIC_BYTE_VALUE)
+        byteBuf.writeInt(schemaId)
+        val header = UnsafeByteOperations.unsafeWrap(ByteBufUtil.getBytes(byteBuf))
+        return header.concat(UnsafeByteOperations.unsafeWrap(byteArrayOutputStream.toByteArray()))
     }
 
     companion object {
-        const val AVRO_MESSAGE = "AvroMessage"
+        const val AVRO_HEADER_SIZE = 5
+        private const val MAGIC_BYTE_VALUE = 0
     }
 }
