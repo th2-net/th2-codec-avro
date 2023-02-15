@@ -62,6 +62,21 @@ class TestAvroCodec {
         val encodeBody = encode(decodeGroup)
         assertEquals(body, encodeBody)
     }
+    @Test
+    fun `test decode encode logical types`() {
+        schema = getSchema("shema_logical_types.avsc")
+        codec = AvroCodec(schema, AvroCodecSettings())
+        val rawBytes =
+            DatatypeConverter.parseHexBinary(
+                "14303132333435363738390403E888A30292F3BE03D2C4B3A31BE0BEB4CDF65D809E8AE2CCE6DD0592B3B2B7D75DD2C4DFE188F3DB05"
+            )
+        val body = ByteString.copyFrom(rawBytes)
+        val decodeGroup = decode(body)
+        val actualCountFields = decodeGroup.messagesList[0].message.fieldsMap.size
+        assertEquals(9, actualCountFields)
+        val encodeBody = encode(decodeGroup)
+        assertEquals(body, encodeBody)
+    }
 
     private fun decode(body: ByteString?): MessageGroup {
         val rawMessage = RawMessage.newBuilder()

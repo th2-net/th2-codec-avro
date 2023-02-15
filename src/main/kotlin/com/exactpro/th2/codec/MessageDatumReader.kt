@@ -18,34 +18,18 @@ package com.exactpro.th2.codec
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.value.toValue
-import org.apache.avro.Conversion
-import org.apache.avro.LogicalType
-import org.apache.avro.Schema
-import org.apache.avro.generic.GenericDatumReader
+import org.apache.avro.*
+import org.apache.avro.data.TimeConversions.*
+import org.apache.avro.generic.*
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
 import java.io.IOException
 import java.nio.ByteBuffer
+import java.util.*
 import javax.xml.bind.DatatypeConverter
 
-class MessageDatumReader(schema: Schema?) :
-    GenericDatumReader<Message.Builder>(schema) {
-
-    @Throws(IOException::class)
-    override fun readWithConversion(
-        old: Any?, expected: Schema?, logicalType: LogicalType?, conversion: Conversion<*>?,
-        decoder: ResolvingDecoder?
-    ): Any? {
-        throw IllegalStateException("Logical types not supported")
-    }
-
-    @Throws(IOException::class)
-    override fun read(old: Any?, expected: Schema, decoder: ResolvingDecoder?): Any? {
-        val datum = readWithoutConversion(old, expected, decoder)
-        val logicalType = expected.logicalType
-        check(logicalType == null) { "Logical types not supported" }
-        return datum
-    }
+class MessageDatumReader(schema: Schema) :
+    GenericDatumReader<Message.Builder>(schema, schema, getData()) {
 
     @Throws(IOException::class)
     override fun readRecord(old: Any?, expected: Schema, decoder: ResolvingDecoder): Message.Builder {
@@ -64,7 +48,7 @@ class MessageDatumReader(schema: Schema?) :
         }
     }
 
-     private fun createRecord(): Message.Builder {
+    private fun createRecord(): Message.Builder {
         return Message.newBuilder()
     }
 
@@ -98,10 +82,29 @@ class MessageDatumReader(schema: Schema?) :
     private fun byteArrayToHEXString(bytes: ByteArray) = DatatypeConverter.printHexBinary(bytes)
 
     @Throws(IOException::class)
+    override fun readBytes(old: Any?, s: Schema, decoder: Decoder): Any? {
+        return if (s.logicalType == null) readBytes(old, decoder) else super.readBytes(old, decoder)
+    }
+
+    @Throws(IOException::class)
     override fun readBytes(old: Any?, decoder: Decoder): String {
         val buffer = super.readBytes(old, decoder) as ByteBuffer
         val bytes = ByteArray(buffer.remaining())
         buffer.get(bytes)
         return byteArrayToHEXString(bytes)
+    }
+    companion object {
+        fun getData(): GenericData? {
+            return GenericData.get().apply {
+                addLogicalTypeConversion(Conversions.DecimalConversion())
+                addLogicalTypeConversion(DateConversion())
+                addLogicalTypeConversion(TimeMillisConversion())
+                addLogicalTypeConversion(TimeMicrosConversion())
+                addLogicalTypeConversion(TimestampMillisConversion())
+                addLogicalTypeConversion(TimestampMicrosConversion())
+                addLogicalTypeConversion(LocalTimestampMillisConversion())
+                addLogicalTypeConversion(LocalTimestampMicrosConversion())
+            }
+        }
     }
 }

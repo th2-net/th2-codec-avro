@@ -23,6 +23,7 @@ import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.RawMessage
 import com.google.protobuf.ByteString
+import com.google.protobuf.UnsafeByteOperations
 import io.netty.buffer.Unpooled
 import org.apache.avro.Schema
 import org.apache.avro.io.Decoder
@@ -75,7 +76,7 @@ class AvroCodec(
         try {
             return datumReader.read(Message.newBuilder(), decoder)
         } catch (e: IOException) {
-            throw DecodeException("Can't parse message data: $bytes by schema: ${schema.fullName}")
+            throw DecodeException("Can't parse message data: $bytes by schema: ${schema.fullName}", e)
         }
     }
 
@@ -117,10 +118,10 @@ class AvroCodec(
         try {
             datumWriter.write(parsedMessage, encoder)
         } catch (e: IOException) {
-            throw EncoderException("Can't parse message data: $parsedMessage by schema: ${schema.fullName}")
+            throw EncoderException("Can't parse message data: $parsedMessage by schema: ${schema.fullName}", e)
         }
         encoder.flush()
-        return ByteString.copyFrom(byteArrayOutputStream.toByteArray())
+        return UnsafeByteOperations.unsafeWrap(byteArrayOutputStream.toByteArray())
     }
 
     companion object {

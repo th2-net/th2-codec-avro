@@ -18,4 +18,5 @@ package com.exactpro.th2.codec
 import com.exactpro.th2.codec.api.IPipelineCodecSettings
 
 class AvroCodecSettings: IPipelineCodecSettings {
+    var supportLogicalTypes = false
 }
