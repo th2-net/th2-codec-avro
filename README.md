@@ -1,1 +1,1 @@
-# th2-codec-avro
+# th2-codec-avro (1.0.0)

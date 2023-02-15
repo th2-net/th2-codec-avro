@@ -16,12 +16,12 @@
 package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.api.IPipelineCodec
-import com.exactpro.th2.codec.util.toMessageMetadataBuilder
-import com.exactpro.th2.codec.util.toRawMetadataBuilder
 import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
+import com.exactpro.th2.common.grpc.MessageMetadata
 import com.exactpro.th2.common.grpc.RawMessage
+import com.exactpro.th2.common.grpc.RawMessageMetadata
 import com.google.protobuf.ByteString
 import com.google.protobuf.UnsafeByteOperations
 import io.netty.buffer.Unpooled
@@ -59,7 +59,7 @@ class AvroCodec(
                 val decodeMessage = decodeRawMessage(rawMessage)
                     .setParentEventId(rawMessage.parentEventId)
                     .setMetadata(
-                        rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
+                        rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL), 1)
                             .setMessageType(AVRO_MESSAGE)
                     )
                     .build()
@@ -126,5 +126,39 @@ class AvroCodec(
 
     companion object {
         const val AVRO_MESSAGE = "AvroMessage"
+
+        // FIXME remove after implementation toMessageMetadataBuilder(protocols: Collection<String>, subsequence: Int) in package com.exactpro.th2.codec.util
+        fun RawMessage.toMessageMetadataBuilder(protocols: Collection<String>, subsequence: Int): MessageMetadata.Builder {
+            val protocol = metadata.protocol.ifBlank {
+                when(protocols.size) {
+                    1 -> protocols.first()
+                    else -> protocols.toString()
+                }
+            }
+
+            return MessageMetadata.newBuilder()
+                .setId(metadata.id.toBuilder().apply {
+                    addSubsequence(subsequence)
+                })
+                .setTimestamp(metadata.timestamp)
+                .setProtocol(protocol)
+                .putAllProperties(metadata.propertiesMap)
+        }
+        //FIXME: move to core part
+        fun Message.toRawMetadataBuilder(protocols: Collection<String>): RawMessageMetadata.Builder {
+            val protocol = metadata.protocol.ifBlank {
+                when(protocols.size) {
+                    1 -> protocols.first()
+                    else -> protocols.toString()
+                }
+            }
+
+            return RawMessageMetadata.newBuilder()
+                .setId(metadata.id)
+                .setTimestamp(metadata.timestamp)
+                .setProtocol(protocol)
+                .putAllProperties(metadata.propertiesMap)
+        }
+
     }
 }
