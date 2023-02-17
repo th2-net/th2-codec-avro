@@ -15,7 +15,6 @@
  */
 package com.exactpro.th2.codec
 
-import com.exactpro.th2.codec.MessageDatumReader.Companion.byteArrayToHEXString
 import com.exactpro.th2.codec.api.IPipelineCodec
 import com.exactpro.th2.codec.util.toMessageMetadataBuilder
 import com.exactpro.th2.codec.util.toRawMetadataBuilder
@@ -33,6 +32,7 @@ import org.apache.avro.io.DecoderFactory
 import org.apache.avro.io.Encoder
 import org.apache.avro.io.EncoderFactory
 import org.apache.commons.codec.EncoderException
+import org.apache.commons.codec.binary.Hex
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.*
@@ -41,8 +41,9 @@ class AvroCodec(
     private val schemaIdToSchema: Map<Int, Schema>,
     settings: AvroCodecSettings
 ) : IPipelineCodec {
-    private val datumReaders: Map<Int, MessageDatumReader> = schemaIdToSchema.mapValues { MessageDatumReader(it.value) }
-    private val datumWriters: Map<Int, MessageDatumWriter> = schemaIdToSchema.mapValues { MessageDatumWriter(it.value) }
+    private val enableIdPrefixEnumFields = settings.enableIdPrefixEnumFields
+    private val datumReaders: Map<Int, MessageDatumReader> = schemaIdToSchema.mapValues { MessageDatumReader(it.value, enableIdPrefixEnumFields) }
+    private val datumWriters: Map<Int, MessageDatumWriter> = schemaIdToSchema.mapValues { MessageDatumWriter(it.value, enableIdPrefixEnumFields) }
     private val schemaIdToMessageName: Map<Int, String> = schemaIdToSchema.mapValues { it.value.name }
     private val messageNameToSchemaId: Map<String, Int> =
         schemaIdToMessageName.entries.associate { (key, value) -> value to key }
@@ -89,7 +90,7 @@ class AvroCodec(
                 .build()
 
         } catch (e: IOException) {
-            throw DecodeException("Can't parse message data: ${byteArrayToHEXString(bytes)} by schema id: $schemaId", e)
+            throw DecodeException("Can't parse message data: ${Hex.encodeHexString(bytes)} by schema id: $schemaId", e)
         }
     }
 
