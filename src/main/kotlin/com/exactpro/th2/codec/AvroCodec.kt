@@ -15,6 +15,7 @@
  */
 package com.exactpro.th2.codec
 
+import com.exactpro.th2.codec.MessageDatumReader.Companion.byteArrayToHEXString
 import com.exactpro.th2.codec.api.IPipelineCodec
 import com.exactpro.th2.codec.util.toMessageMetadataBuilder
 import com.exactpro.th2.codec.util.toRawMetadataBuilder
@@ -80,7 +81,7 @@ class AvroCodec(
         val decoder: Decoder = DecoderFactory.get().binaryDecoder(bytes, AVRO_HEADER_SIZE, bytes.size - AVRO_HEADER_SIZE, null)
         try {
             return reader.read(Message.newBuilder(), decoder)
-                .setParentEventId(rawMessage.parentEventId)
+                .apply { if (rawMessage.hasParentEventId()) this.parentEventId = rawMessage.parentEventId }
                 .setMetadata(
                     rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
                         .setMessageType(checkNotNull(schemaIdToMessageName[schemaId]) { "No message name found for schema id: $schemaId" })
@@ -88,7 +89,7 @@ class AvroCodec(
                 .build()
 
         } catch (e: IOException) {
-            throw DecodeException("Can't parse message data: $bytes by schema id: $schemaId}", e)
+            throw DecodeException("Can't parse message data: ${byteArrayToHEXString(bytes)} by schema id: $schemaId", e)
         }
     }
 

@@ -1,6 +1,6 @@
 {
   "type" : "record",
-  "name" : "recordAll",
+  "name" : "bigRecord",
   "fields" : [ {
     "name" : "requiredBoolean",
     "type" : "boolean"

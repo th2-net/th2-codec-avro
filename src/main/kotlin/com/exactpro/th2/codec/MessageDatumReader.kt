@@ -15,7 +15,9 @@
  */
 package com.exactpro.th2.codec
 
+import com.exactpro.th2.codec.MessageDatumWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
 import com.exactpro.th2.common.grpc.Message
+import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.value.toValue
 import org.apache.avro.*
@@ -30,6 +32,16 @@ import javax.xml.bind.DatatypeConverter
 
 class MessageDatumReader(schema: Schema) :
     GenericDatumReader<Message.Builder>(schema, schema, getData()) {
+    @Throws(IOException::class)
+    override fun readWithoutConversion(old: Any?, expected: Schema, decoder: ResolvingDecoder): Any? {
+        return if (expected.type == Schema.Type.UNION) {
+            val readIndex = decoder.readIndex()
+            val schema = expected.types[readIndex]
+            UnionData(read(old, schema, decoder), schema.name)
+        } else {
+            super.readWithoutConversion(old, expected, decoder)
+        }
+    }
 
     @Throws(IOException::class)
     override fun readRecord(old: Any?, expected: Schema, decoder: ResolvingDecoder): Message.Builder {
@@ -42,10 +54,23 @@ class MessageDatumReader(schema: Schema) :
 
     @Throws(IOException::class)
     override fun readField(r: Any, f: Schema.Field, oldDatum: Any?, decoder: ResolvingDecoder, state: Any?) {
-        val readValue = read(oldDatum, f.schema(), decoder)
-        if (readValue != null) {
-            (r as Message.Builder).addField(f.name(), readValue.toValue())
+        var readValue = read(oldDatum, f.schema(), decoder)
+        var fieldName = f.name()
+
+        if (readValue is UnionData) {
+            val description = readValue.description
+            readValue = readValue.value
+            if (readValue != null) {
+                fieldName = resolveUnionFieldName(fieldName, description)
+            }
         }
+        if (readValue != null) {
+            (r as Message.Builder).addField(fieldName, readValue.convertToValue())
+        }
+    }
+
+    private fun resolveUnionFieldName(fieldName: String, description: String): String {
+        return "$description$UNION_FIELD_NAME_TYPE_DELIMITER$fieldName"
     }
 
     private fun createRecord(): Message.Builder {
@@ -64,7 +89,7 @@ class MessageDatumReader(schema: Schema) :
 
     override fun addToMap(map: Any, key: Any?, value: Any?) {
         if (value != null) {
-            (map as Message.Builder).addField(key.toString(), value.toValue())
+            (map as Message.Builder).addField(key.toString(), value.convertToValue())
         }
     }
 
@@ -72,28 +97,25 @@ class MessageDatumReader(schema: Schema) :
         return Message.newBuilder()
     }
 
-    @Throws(IOException::class)
-    override fun readFixed(old: Any?, expected: Schema, decoder: Decoder): String {
-        val bytes = ByteArray(expected.fixedSize)
-        decoder.readFixed(bytes, 0, expected.fixedSize)
+    private fun ByteBuffer.asHexString(): String {
+        val bytes = ByteArray(this.remaining())
+        this.get(bytes)
         return byteArrayToHEXString(bytes)
     }
-
-    private fun byteArrayToHEXString(bytes: ByteArray) = DatatypeConverter.printHexBinary(bytes)
-
-    @Throws(IOException::class)
-    override fun readBytes(old: Any?, s: Schema, decoder: Decoder): Any? {
-        return if (s.logicalType == null) readBytes(old, decoder) else super.readBytes(old, decoder)
+    private fun GenericFixed.asHexString(): String = byteArrayToHEXString(this.bytes())
+    private fun Any.convertToValue(): Value = when (this) {
+        is ByteBuffer ->
+            this.asHexString().toValue()
+        is GenericFixed ->
+            this.asHexString().toValue()
+        else -> toValue()
     }
-
-    @Throws(IOException::class)
-    override fun readBytes(old: Any?, decoder: Decoder): String {
-        val buffer = super.readBytes(old, decoder) as ByteBuffer
-        val bytes = ByteArray(buffer.remaining())
-        buffer.get(bytes)
-        return byteArrayToHEXString(bytes)
-    }
+    data class UnionData(
+        val value: Any?,
+        val description: String
+    )
     companion object {
+         fun byteArrayToHEXString(bytes: ByteArray): String = DatatypeConverter.printHexBinary(bytes)
         fun getData(): GenericData? {
             return GenericData.get().apply {
                 addLogicalTypeConversion(Conversions.DecimalConversion())
