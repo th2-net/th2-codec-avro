@@ -1,6 +1,6 @@
 {
 	"namespace": "example.avro", "type": "record",
-    "name": "Account",
+    "name": "LogicTypes",
     "fields": [
     	{"name": "accountNumber", "type": "string"},
         {"name": "balance", "type": {"type":"bytes","logicalType":"decimal","precision":4,"scale":2}},

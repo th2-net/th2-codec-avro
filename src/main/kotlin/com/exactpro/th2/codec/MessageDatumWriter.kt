@@ -21,29 +21,23 @@ import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.getField
 import com.exactpro.th2.common.value.getList
 import com.exactpro.th2.common.value.getMessage
-import org.apache.avro.AvroTypeException
-import org.apache.avro.Conversion
-import org.apache.avro.Schema
-import org.apache.avro.UnresolvedUnionException
+import org.apache.avro.*
 import org.apache.avro.generic.GenericDatumWriter
 import org.apache.avro.io.Encoder
 import org.apache.avro.path.*
 import org.apache.avro.util.SchemaUtil
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.ZoneOffset
+import java.time.*
 import java.time.format.DateTimeFormatter
 import javax.xml.bind.DatatypeConverter
+
 
 class MessageDatumWriter(schema: Schema) :
     GenericDatumWriter<Message>(schema, getData()) {
     @Throws(IOException::class)
     override fun writeField(datum: Any?, f: Schema.Field, out: Encoder, state: Any?) {
-        val value = (datum as Message).getField(f.name())
+        val value = resolveUnionValue(f, datum)
         if (value != null) {
             try {
                 write(f.schema(), value, out)
@@ -62,6 +56,17 @@ class MessageDatumWriter(schema: Schema) :
         }
     }
 
+    private fun resolveUnionValue(f: Schema.Field, datum: Any?): Any? {
+        if (f.schema().type == Schema.Type.UNION) {
+            val fieldName =
+                (datum as Message).fieldsMap.keys.firstOrNull { s -> s.endsWith("$UNION_FIELD_NAME_TYPE_DELIMITER${f.name()}") }
+            val unionValue = if (fieldName == null) null else datum.getField(fieldName)
+            return Pair(resolveUnion(f.schema(), fieldName, unionValue), unionValue)
+
+        }
+        return (datum as Message).getField(f.name())
+    }
+
     @Throws(IOException::class)
     override fun writeRecord(schema: Schema, datum: Any?, out: Encoder) {
         for (field in schema.fields) {
@@ -78,9 +83,13 @@ class MessageDatumWriter(schema: Schema) :
                 Schema.Type.ENUM -> writeEnum(schema, datum, out)
                 Schema.Type.ARRAY -> writeArray(schema, (datum as Value).getList(), out)
                 Schema.Type.MAP -> writeMap(schema, (datum as Value).getMessage(), out)
-                Schema.Type.UNION -> throw AvroTypeException(
-                    "$schemaType type is not supported in encoding, not enough data type information"
-                )
+                Schema.Type.UNION -> {
+                    val (unionIndex, value) = datum as Pair<*, *>
+                    out.writeIndex(unionIndex as Int)
+                    if (value != null) {
+                        write(schema.types[unionIndex], value, out)
+                    }
+                }
                 Schema.Type.FIXED -> writeFixed(schema, datum, out)
                 Schema.Type.STRING -> if (datum is Value) writeString(schema, datum.simpleValue.toString(), out)
                 Schema.Type.BYTES -> writeBytes(datum, out)
@@ -177,9 +186,15 @@ class MessageDatumWriter(schema: Schema) :
             writeWithoutConversion(schema, datum, out)
         }
     }
-
+    private fun resolveUnion(union: Schema, fieldName: String?, enumValue: Value?): Int {
+        val schemaName = if (enumValue == null) Schema.Type.NULL.getName() else fieldName?.substringBefore(
+            UNION_FIELD_NAME_TYPE_DELIMITER
+        )
+        return union.getIndexNamed(schemaName)
+    }
     companion object {
         const val FORMAT_TYPE_ERROR = "Unsupported type %s for %s"
+        const val UNION_FIELD_NAME_TYPE_DELIMITER = '-'
         val localTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
         val localTimeWithMicrosConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC)
         val localDateTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
