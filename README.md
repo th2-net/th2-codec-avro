@@ -53,12 +53,14 @@ AVRO codec has the following parameters:
 
 ```yaml
 enableIdPrefixEnumFields: false
-messageIdsToSchemaAliases: 1:schemaAlias1,2:schemaAlias2,3:schemaAlias3
+avroMessageIdToDictionaryAlias: 
+  '1': "${dictionary_link:avro-schema-1-dictionary}"
+  '2': "${dictionary_link:avro-schema-2-dictionary}"
+  '3': "${dictionary_link:avro-schema-3-dictionary}"
 ```
 **enableIdPrefixEnumFields** - prefix setting for UNION fields. If `false`, use prefix as `AVRO data type`(for example `Record-`, `Map-`), if `true` then use `schema id` prefix(for example `Id0-`, `Id-3`). The default value is `false`
 
-**messageIdsToSchemaAliases** - matching `schema id` pairs with its `alias` available for loading in the pipelineCodecContext. Delimiter for pairs `,`, delimiter for key and value within pair `:`.
-
+**avroMessageIdToDictionaryAlias** - matching `schema id` pairs with its `alias` available for loading in the pipelineCodecContext.
 
 ## Release notes
 

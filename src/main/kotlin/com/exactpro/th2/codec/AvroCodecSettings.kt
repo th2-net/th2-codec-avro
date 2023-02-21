@@ -17,7 +17,7 @@ package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.api.IPipelineCodecSettings
 
-class AvroCodecSettings : IPipelineCodecSettings {
-    lateinit var messageIdsToSchemaAliases: String
-    var enableIdPrefixEnumFields: Boolean = false
-}
+class AvroCodecSettings(
+    val avroMessageIdToDictionaryAlias: Map<Int, String>,
+    val enableIdPrefixEnumFields: Boolean = false
+) : IPipelineCodecSettings
