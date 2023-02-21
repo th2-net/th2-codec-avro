@@ -43,19 +43,10 @@ class AvroCodecFactory : IPipelineCodecFactory {
             "settings is not an instance of ${AvroCodecSettings::class.java}: ${settings?.let { it::class.java }}"
         }
 
-        val idToSchema = codecSettings.messageIdsToSchemaAliases
-        if (idToSchema.isEmpty()) {
-            throw IllegalArgumentException("Parameter messageIdsToSchemaAliases is required")
+        if (codecSettings.avroMessageIdToDictionaryAlias.isEmpty()) {
+            throw IllegalArgumentException("Parameter avroMessageIdToDictionaryAlias can not be empty")
         }
-        try {
-            val map = idToSchema.split(SCHEMA_DELIMITER).associate {
-                val (key, value) = it.split(SCHEMA_KEY_VALUE_DELIMITER)
-                key.trim().toInt() to value.trim()
-            }
-            schemaIdToSchema = map.mapValues { loadSchema(it.value) }
-        } catch (e: Exception) {
-            throw IllegalArgumentException("Parse error messageIdsToSchemaAliases: $idToSchema", e)
-        }
+        schemaIdToSchema = codecSettings.avroMessageIdToDictionaryAlias.mapValues { loadSchema(it.value) }
         return AvroCodec(schemaIdToSchema, codecSettings)
     }
 
@@ -65,7 +56,5 @@ class AvroCodecFactory : IPipelineCodecFactory {
 
     companion object {
         const val PROTOCOL = "AVRO"
-        const val SCHEMA_DELIMITER = ","
-        const val SCHEMA_KEY_VALUE_DELIMITER = ":"
     }
 }

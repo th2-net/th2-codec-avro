@@ -26,14 +26,14 @@ import org.apache.avro.generic.GenericDatumWriter
 import org.apache.avro.io.Encoder
 import org.apache.avro.path.*
 import org.apache.avro.util.SchemaUtil
+import org.apache.commons.codec.binary.Hex
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.time.*
 import java.time.format.DateTimeFormatter
-import javax.xml.bind.DatatypeConverter
 
 
-class MessageDatumWriter(schema: Schema) :
+class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
     GenericDatumWriter<Message>(schema, getData()) {
     @Throws(IOException::class)
     override fun writeField(datum: Any?, f: Schema.Field, out: Encoder, state: Any?) {
@@ -147,13 +147,13 @@ class MessageDatumWriter(schema: Schema) :
 
     @Throws(IOException::class)
     override fun writeFixed(schema: Schema, datum: Any, out: Encoder) {
-        out.writeFixed(hexStringToByteArray((datum as Value).simpleValue.toString()), 0, schema.fixedSize)
+        out.writeFixed(Hex.decodeHex((datum as Value).simpleValue.toString()), 0, schema.fixedSize)
     }
 
     @Throws(IOException::class)
     override fun writeBytes(datum: Any, out: Encoder) {
         when(datum){
-            is Value -> out.writeBytes(hexStringToByteArray(datum.simpleValue.toString()))
+            is Value -> out.writeBytes(Hex.decodeHex(datum.simpleValue.toString()))
             is ByteBuffer -> {
                 val bytes = ByteArray(datum.remaining())
                 datum.get(bytes)
@@ -187,14 +187,30 @@ class MessageDatumWriter(schema: Schema) :
         }
     }
     private fun resolveUnion(union: Schema, fieldName: String?, enumValue: Value?): Int {
-        val schemaName = if (enumValue == null) Schema.Type.NULL.getName() else fieldName?.substringBefore(
-            UNION_FIELD_NAME_TYPE_DELIMITER
-        )
-        return union.getIndexNamed(schemaName)
+        if (enableIdPrefixEnumFields.and(enumValue != null)) {
+            try {
+                return checkNotNull(
+                    fieldName?.substringBefore(UNION_FIELD_NAME_TYPE_DELIMITER)?.substringAfter(UNION_ID_PREFIX)
+                        ?.toInt()
+                ) { "Schema id not found in field name: $fieldName" }
+            } catch (e: NumberFormatException) {
+                throw AvroTypeException(
+                    "Union prefix: $UNION_ID_PREFIX'{schema id}'$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName",
+                    e
+                )
+            }
+        }
+        val schemaName = checkNotNull(
+            if (enumValue == null) Schema.Type.NULL.getName() else fieldName?.substringBefore(
+                UNION_FIELD_NAME_TYPE_DELIMITER
+            )
+        ) { "Union prefix: {avro type}$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName" }
+        return checkNotNull(union.getIndexNamed(schemaName)) { "Schema with name: $schemaName not found in union parent schema: ${union.name}" }
     }
     companion object {
         const val FORMAT_TYPE_ERROR = "Unsupported type %s for %s"
         const val UNION_FIELD_NAME_TYPE_DELIMITER = '-'
+        const val UNION_ID_PREFIX = "Id"
         val localTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
         val localTimeWithMicrosConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC)
         val localDateTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
@@ -209,6 +225,5 @@ class MessageDatumWriter(schema: Schema) :
             LOCAL_TIMESTAMP_MILLIS("local-timestamp-millis"),
             LOCAL_TIMESTAMP_MICROS("local-timestamp-micros")
         }
-        fun hexStringToByteArray(hexString: String): ByteArray = DatatypeConverter.parseHexBinary(hexString)
     }
 }

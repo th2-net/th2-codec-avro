@@ -16,6 +16,7 @@
 package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.MessageDatumWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
+import com.exactpro.th2.codec.MessageDatumWriter.Companion.UNION_ID_PREFIX
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.addField
@@ -25,19 +26,20 @@ import org.apache.avro.data.TimeConversions.*
 import org.apache.avro.generic.*
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
+import org.apache.commons.codec.binary.Hex
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.*
 import javax.xml.bind.DatatypeConverter
 
-class MessageDatumReader(schema: Schema) :
+class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
     GenericDatumReader<Message.Builder>(schema, schema, getData()) {
     @Throws(IOException::class)
     override fun readWithoutConversion(old: Any?, expected: Schema, decoder: ResolvingDecoder): Any? {
         return if (expected.type == Schema.Type.UNION) {
             val readIndex = decoder.readIndex()
             val schema = expected.types[readIndex]
-            UnionData(read(old, schema, decoder), schema.name)
+            UnionData(read(old, schema, decoder), if(enableIdPrefixEnumFields) "$UNION_ID_PREFIX$readIndex" else schema.name)
         } else {
             super.readWithoutConversion(old, expected, decoder)
         }
@@ -100,9 +102,9 @@ class MessageDatumReader(schema: Schema) :
     private fun ByteBuffer.asHexString(): String {
         val bytes = ByteArray(this.remaining())
         this.get(bytes)
-        return byteArrayToHEXString(bytes)
+        return Hex.encodeHexString(bytes)
     }
-    private fun GenericFixed.asHexString(): String = byteArrayToHEXString(this.bytes())
+    private fun GenericFixed.asHexString(): String = Hex.encodeHexString(this.bytes())
     private fun Any.convertToValue(): Value = when (this) {
         is ByteBuffer ->
             this.asHexString().toValue()
@@ -115,7 +117,6 @@ class MessageDatumReader(schema: Schema) :
         val description: String
     )
     companion object {
-         fun byteArrayToHEXString(bytes: ByteArray): String = DatatypeConverter.printHexBinary(bytes)
         fun getData(): GenericData? {
             return GenericData.get().apply {
                 addLogicalTypeConversion(Conversions.DecimalConversion())

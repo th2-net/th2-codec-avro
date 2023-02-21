@@ -77,13 +77,10 @@ configurations.implementation {
 
 dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
+    api "com.exactpro.sf:sailfish-common:${sailfishVersion}"
+
     implementation 'com.exactpro.th2:common:3.44.0'
     implementation 'com.exactpro.th2:codec:4.8.0'
-    api "com.exactpro.sf:sailfish-common:${sailfishVersion}"
-    implementation ("io.fabric8:kubernetes-client:4.13.2") {
-        because "rewrite vulnerable version from common:3.44.0"
-    }
-
 
     implementation 'io.netty:netty-buffer:4.1.87.Final'
 
