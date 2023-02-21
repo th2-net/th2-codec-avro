@@ -1,4 +1,4 @@
-# AVRO codec (0.0.1)
+# AVRO codec (2.0.0)
 ## Description
 Designed for decode AVRO raw messages to parsed messages and encode back.
 It is based on [th2-codec](https://github.com/th2-net/th2-codec).
@@ -61,5 +61,11 @@ messageIdsToSchemaAliases: 1:schemaAlias1,2:schemaAlias2,3:schemaAlias3
 
 
 ## Release notes
+
+### 2.0.0
++ Migrated to book and page concept
+
+### 1.0.0
++ Added data types described in [avro 1.10.2](https://avro.apache.org/docs/1.10.2/spec.html)
 
 ### 0.0.1
