@@ -77,13 +77,10 @@ configurations.implementation {
 
 dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
-    implementation 'com.exactpro.th2:common:5.1.0-dev-version-5-4085018593-8adee33-SNAPSHOT'
-    implementation 'com.exactpro.th2:codec:5.1.0-dev'
     api "com.exactpro.sf:sailfish-common:${sailfishVersion}"
-    implementation ("io.fabric8:kubernetes-client:4.13.2") {
-        because "rewrite vulnerable version from common:5.0.0-dev-version-5-3838510969-SNAPSHOT"
-    }
 
+    implementation 'com.exactpro.th2:common:5.1.0-dev-version-5-4085018593-8adee33-SNAPSHOT' //FIXME: migrate to release
+    implementation 'com.exactpro.th2:codec:5.1.0-dev'
 
     implementation 'io.netty:netty-buffer:4.1.87.Final'
 
