@@ -1,4 +1,4 @@
-# AVRO codec (1.0.0)
+# AVRO codec (1.1.0)
 ## Description
 Designed for decode AVRO raw messages to parsed messages and encode back.
 It is based on [th2-codec](https://github.com/th2-net/th2-codec).
@@ -63,6 +63,10 @@ avroMessageIdToDictionaryAlias:
 **avroMessageIdToDictionaryAlias** - matching `schema id` pairs with its `alias` available for loading in the pipelineCodecContext.
 
 ## Release notes
+
+### 1.1.0
++ th2-bom upgrade to `4.2.0`
++ th2-common upgrade to `3.44.1`
 
 ### 1.0.0
 + Added data types described in [avro 1.10.2](https://avro.apache.org/docs/1.10.2/spec.html)
