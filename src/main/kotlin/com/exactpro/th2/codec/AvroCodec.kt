@@ -26,16 +26,15 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.UnsafeByteOperations
 import io.netty.buffer.ByteBufUtil
 import io.netty.buffer.Unpooled
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.util.*
+import javax.xml.bind.DatatypeConverter
 import org.apache.avro.Schema
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.DecoderFactory
 import org.apache.avro.io.Encoder
 import org.apache.avro.io.EncoderFactory
-import org.apache.commons.codec.EncoderException
-import org.apache.commons.codec.binary.Hex
-import java.io.ByteArrayOutputStream
-import java.io.IOException
-import java.util.*
 
 class AvroCodec(
     private val schemaIdToSchema: Map<Int, Schema>,
@@ -91,7 +90,7 @@ class AvroCodec(
                 .build()
 
         } catch (e: IOException) {
-            throw DecodeException("Can't parse message data: ${Hex.encodeHexString(bytes)} by schema id: $schemaId", e)
+            throw DecodeException("Can't parse message data: ${DatatypeConverter.printHexBinary(bytes)} by schema id: $schemaId", e)
         }
     }
 
@@ -135,7 +134,7 @@ class AvroCodec(
         try {
             writer.write(parsedMessage, encoder)
         } catch (e: IOException) {
-            throw EncoderException("Can't parse message data: $parsedMessage by schema: ${schemaIdToSchema[schemaId]}", e)
+            throw IllegalStateException("Can't parse message data: $parsedMessage by schema: ${schemaIdToSchema[schemaId]}", e)
         }
         encoder.flush()
         val byteBuf = Unpooled.buffer()

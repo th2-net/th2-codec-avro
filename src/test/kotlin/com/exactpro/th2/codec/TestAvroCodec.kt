@@ -23,13 +23,12 @@ import org.apache.avro.generic.GenericDatumWriter
 import org.apache.avro.io.BinaryEncoder
 import org.apache.avro.io.EncoderFactory
 import org.apache.avro.util.RandomData
-import org.apache.commons.codec.binary.Hex
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
 import javax.xml.bind.DatatypeConverter
 import kotlin.test.assertEquals
+import org.junit.jupiter.api.Disabled
 
 class TestAvroCodec {
     private val schemaIdToSchema = mapOf(
@@ -133,6 +132,6 @@ class TestAvroCodec {
         }
         encoder.flush()
         val data = outputStream.toByteArray()
-        println(Hex.encodeHexString(data))
+        println(DatatypeConverter.printHexBinary(data))
     }
 }

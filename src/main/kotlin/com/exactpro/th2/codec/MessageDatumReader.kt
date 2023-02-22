@@ -26,7 +26,6 @@ import org.apache.avro.data.TimeConversions.*
 import org.apache.avro.generic.*
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
-import org.apache.commons.codec.binary.Hex
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.*
@@ -102,9 +101,9 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
     private fun ByteBuffer.asHexString(): String {
         val bytes = ByteArray(this.remaining())
         this.get(bytes)
-        return Hex.encodeHexString(bytes)
+        return DatatypeConverter.printHexBinary(bytes)
     }
-    private fun GenericFixed.asHexString(): String = Hex.encodeHexString(this.bytes())
+    private fun GenericFixed.asHexString(): String = DatatypeConverter.printHexBinary(this.bytes())
     private fun Any.convertToValue(): Value = when (this) {
         is ByteBuffer ->
             this.asHexString().toValue()
