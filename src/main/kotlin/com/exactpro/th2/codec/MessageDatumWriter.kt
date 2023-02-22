@@ -26,11 +26,11 @@ import org.apache.avro.generic.GenericDatumWriter
 import org.apache.avro.io.Encoder
 import org.apache.avro.path.*
 import org.apache.avro.util.SchemaUtil
-import org.apache.commons.codec.binary.Hex
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.time.*
 import java.time.format.DateTimeFormatter
+import javax.xml.bind.DatatypeConverter
 
 
 class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
@@ -147,13 +147,13 @@ class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: B
 
     @Throws(IOException::class)
     override fun writeFixed(schema: Schema, datum: Any, out: Encoder) {
-        out.writeFixed(Hex.decodeHex((datum as Value).simpleValue.toString()), 0, schema.fixedSize)
+        out.writeFixed(DatatypeConverter.parseHexBinary((datum as Value).simpleValue.toString()), 0, schema.fixedSize)
     }
 
     @Throws(IOException::class)
     override fun writeBytes(datum: Any, out: Encoder) {
         when(datum){
-            is Value -> out.writeBytes(Hex.decodeHex(datum.simpleValue.toString()))
+            is Value -> out.writeBytes(DatatypeConverter.parseHexBinary(datum.simpleValue.toString()))
             is ByteBuffer -> {
                 val bytes = ByteArray(datum.remaining())
                 datum.get(bytes)
