@@ -3,6 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.6.21'
     // for run ./gradlew jmh
     id 'me.champeau.jmh' version '0.6.8'
+    id "org.owasp.dependencycheck" version "8.1.0"
 }
 
 apply plugin: 'application'
@@ -79,10 +80,10 @@ dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
     api "com.exactpro.sf:sailfish-common:${sailfishVersion}"
 
-    implementation 'com.exactpro.th2:common:3.44.0'
-    implementation 'com.exactpro.th2:codec:4.8.0'
+    implementation 'com.exactpro.th2:common:3.44.1'
+    implementation 'com.exactpro.th2:codec:4.8.1'
 
-    implementation 'io.netty:netty-buffer:4.1.87.Final'
+    implementation 'io.netty:netty-buffer'
 
     compileOnly 'com.google.auto.service:auto-service:1.0.1'
 
@@ -137,4 +138,13 @@ jmh {
 dependencyLocking {
     lockAllConfigurations()
 }
+dependencyCheck {
+    formats=['SARIF', 'JSON', 'HTML']
+    failBuildOnCVSS=5
 
+    analyzers {
+        assemblyEnabled = false
+        nugetconfEnabled = false
+        nodeEnabled = false
+    }
+}
