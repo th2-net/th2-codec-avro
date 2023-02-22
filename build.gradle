@@ -78,7 +78,8 @@ configurations.implementation {
 
 dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
-    api "com.exactpro.sf:sailfish-common:${sailfishVersion}"
+
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
 
     implementation 'com.exactpro.th2:common:3.44.1'
     implementation 'com.exactpro.th2:codec:4.8.1'
