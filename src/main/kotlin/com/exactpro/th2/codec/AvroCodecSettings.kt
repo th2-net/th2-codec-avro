@@ -18,6 +18,7 @@ package com.exactpro.th2.codec
 import com.exactpro.th2.codec.api.IPipelineCodecSettings
 
 class AvroCodecSettings(
-    val avroMessageIdToDictionaryAlias: Map<Int, String>,
+    val avroMessageIdToDictionaryAlias: Map<Int, String> = emptyMap(),
+    val sessionAliasToDictionaryAlias: Map<String, String> = emptyMap(),
     val enableIdPrefixEnumFields: Boolean = false
 ) : IPipelineCodecSettings

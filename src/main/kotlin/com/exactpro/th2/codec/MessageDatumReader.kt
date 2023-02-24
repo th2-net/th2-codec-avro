@@ -30,7 +30,6 @@ import org.apache.commons.codec.binary.Hex
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.*
-import javax.xml.bind.DatatypeConverter
 
 class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
     GenericDatumReader<Message.Builder>(schema, schema, getData()) {
