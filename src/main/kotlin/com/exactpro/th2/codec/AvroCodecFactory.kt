@@ -49,10 +49,10 @@ class AvroCodecFactory : IPipelineCodecFactory {
 
         var standardMode = false
         schemaIdToSchema =
-            codecSettings.let {
-                it.sessionAliasToDictionaryAlias.ifEmpty {
+            with(codecSettings) {
+                sessionAliasToDictionaryAlias.ifEmpty {
                     standardMode = true
-                    it.avroMessageIdToDictionaryAlias
+                    avroMessageIdToDictionaryAlias
                 }
             }
                 .mapValues { loadSchema(it.value) }
