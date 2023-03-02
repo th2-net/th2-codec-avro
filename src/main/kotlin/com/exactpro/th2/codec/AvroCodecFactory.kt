@@ -24,7 +24,6 @@ import org.apache.avro.Schema.Parser
 @AutoService(IPipelineCodecFactory::class)
 class AvroCodecFactory : IPipelineCodecFactory {
     private lateinit var codecContext: IPipelineCodecContext
-    private lateinit var schemaIdToSchema: Map<*, Schema>
 
 
     @Deprecated("Please migrate to the protocols property")
@@ -42,21 +41,16 @@ class AvroCodecFactory : IPipelineCodecFactory {
         val codecSettings = requireNotNull(settings as? AvroCodecSettings) {
             "settings is not an instance of ${AvroCodecSettings::class.java}: ${settings?.let { it::class.java }}"
         }
+        val avroMessageIdToDictionaryAlias = codecSettings.avroMessageIdToDictionaryAlias
+        val sessionAliasToDictionaryAlias = codecSettings.sessionAliasToDictionaryAlias
         check(
-            codecSettings.avroMessageIdToDictionaryAlias.isEmpty()
-                .xor(codecSettings.sessionAliasToDictionaryAlias.isEmpty())
+            avroMessageIdToDictionaryAlias.isEmpty()
+                .xor(sessionAliasToDictionaryAlias.isEmpty())
         ) { "One of parameters avroMessageIdToDictionaryAlias and sessionAliasToDictionaryAlias can not be empty" }
 
-        var standardMode = false
-        schemaIdToSchema =
-            with(codecSettings) {
-                sessionAliasToDictionaryAlias.ifEmpty {
-                    standardMode = true
-                    avroMessageIdToDictionaryAlias
-                }
-            }
-                .mapValues { loadSchema(it.value) }
-        return AvroCodec(schemaIdToSchema, codecSettings, standardMode)
+        val schemaIdToSchema = avroMessageIdToDictionaryAlias.ifEmpty { null }?.mapValues { loadSchema(it.value) }
+        val sessionAliasToSchema = sessionAliasToDictionaryAlias.ifEmpty { null }?.mapValues { loadSchema(it.value) }
+        return AvroCodec(schemaIdToSchema, sessionAliasToSchema, codecSettings)
     }
 
     private fun loadSchema(schemaAlias: DictionaryAlias): Schema {

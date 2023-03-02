@@ -16,6 +16,8 @@
 package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.api.IPipelineCodec
+import com.exactpro.th2.codec.resolver.AliasDatumResolver
+import com.exactpro.th2.codec.resolver.SchemaIdDatumResolver
 import com.exactpro.th2.common.grpc.*
 import com.exactpro.th2.common.message.sessionAlias
 import com.google.protobuf.ByteString
@@ -33,16 +35,29 @@ import org.apache.avro.io.Encoder
 import org.apache.avro.io.EncoderFactory
 
 class AvroCodec(
-    private val schemaIdToSchema: Map<*, Schema>,
+    schemaIdToSchema: Map<Int, Schema>?,
+    sessionAliasToSchema: Map<String, Schema>?,
     settings: AvroCodecSettings,
-    private val standardMode: Boolean = true
 ) : IPipelineCodec {
+    private val standardMode = schemaIdToSchema != null
     private val enableIdPrefixEnumFields = settings.enableIdPrefixEnumFields
-    private val datumReaders: Map<*, MessageDatumReader> = schemaIdToSchema.mapValues { MessageDatumReader(it.value, enableIdPrefixEnumFields) }
-    private val datumWriters: Map<*, MessageDatumWriter> = schemaIdToSchema.mapValues { MessageDatumWriter(it.value, enableIdPrefixEnumFields) }
-    private val schemaIdToMessageName: Map<*, String> = checkSchemaNames(schemaIdToSchema.mapValues { it.value.name })
-    private val messageNameToSchemaId: Map<String, *> =
-        schemaIdToMessageName.entries.associate { (key, value) -> value to key }
+    private var schemaIdResolver: SchemaIdDatumResolver? = null
+    private var aliasResolver: AliasDatumResolver? = null
+
+    init {
+        check(
+            (schemaIdToSchema == null)
+                .xor(sessionAliasToSchema == null)
+        ) {
+            "One of field schemaIdToSchema and schemaIdToSchema must be non-null"
+        }
+
+        if (standardMode) {
+            schemaIdResolver = SchemaIdDatumResolver(schemaIdToSchema!!, enableIdPrefixEnumFields)
+        } else {
+            aliasResolver = AliasDatumResolver(sessionAliasToSchema!!, enableIdPrefixEnumFields)
+        }
+    }
     override fun decode(messageGroup: MessageGroup): MessageGroup {
         val messages = messageGroup.messagesList
 
@@ -85,12 +100,12 @@ class AvroCodec(
                 )
             }
             val schemaId = byteBuf.readInt()
-            reader = checkNotNull(datumReaders[schemaId]) { "No reader found for schema id: $schemaId" }
+            reader = schemaIdResolver!!.getReader(schemaId)
             decoder = DecoderFactory.get().binaryDecoder(bytes, AVRO_HEADER_SIZE, bytes.size - AVRO_HEADER_SIZE, null)
             id = schemaId
         } else {
             check(sessionAlias.isNotEmpty()) {"Session alias cannot be empty. Raw message: $rawMessage"}
-            reader = checkNotNull(datumReaders[sessionAlias]) { "No reader found for session alias: $sessionAlias" }
+            reader = checkNotNull(aliasResolver!!.getReader(sessionAlias)) { "No reader found for session alias: $sessionAlias" }
             decoder = DecoderFactory.get().binaryDecoder(bytes, null)
             id = sessionAlias
         }
@@ -99,7 +114,7 @@ class AvroCodec(
                 .apply { if (rawMessage.hasParentEventId()) this.parentEventId = rawMessage.parentEventId }
                 .setMetadata(
                     rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
-                        .setMessageType(checkNotNull(schemaIdToMessageName[id]) { "No message name found for id: $id" })
+                        .setMessageType(checkNotNull(reader.schema.name) { "No message name found for id: $id" })
                 )
                 .build()
 
@@ -124,7 +139,8 @@ class AvroCodec(
                 msgBuilder.addMessages(message)
             } else {
                 val parsedMessage = message.message
-                val messageBody = encodeMessage(parsedMessage)
+                val sessionAlias = parsedMessage.sessionAlias
+                val messageBody = encodeMessage(parsedMessage, sessionAlias)
                 val rawMessage = RawMessage.newBuilder()
                     .setMetadata(
                         parsedMessage.toRawMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
@@ -139,42 +155,30 @@ class AvroCodec(
         return msgBuilder.build()
     }
 
-    private fun encodeMessage(parsedMessage: Message): ByteString? {
-        val messageType = checkNotNull(parsedMessage.metadata.messageType) { "Message type is required. Message $parsedMessage does not have it" }
-        val schemaId = checkNotNull(messageNameToSchemaId[messageType]) { "No schema id found for message type: $messageType" }
-        val writer = checkNotNull(datumWriters[schemaId]) { "No writer found for schema id: $schemaId" }
+    private fun encodeMessage(parsedMessage: Message, sessionAlias: String): ByteString? {
+        val byteBuf = Unpooled.buffer()
+        val writer: MessageDatumWriter = if (standardMode) {
+            val messageType =
+                checkNotNull(parsedMessage.metadata.messageType) { "Message type is required. Message $parsedMessage does not have it" }
+            val schemaId = schemaIdResolver!!.getSchemaId(messageType)
+            byteBuf.writeByte(MAGIC_BYTE_VALUE)
+            byteBuf.writeInt(schemaId)
+            schemaIdResolver!!.getWriter(schemaId)
+        } else {
+            check(sessionAlias.isNotEmpty()) {"Session alias cannot be empty. Parsed message: $parsedMessage"}
+            checkNotNull(aliasResolver!!.getWriter(sessionAlias)) { "No writer found for session alias: $sessionAlias" }
+        }
         val byteArrayOutputStream = ByteArrayOutputStream()
         val encoder: Encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null)
         try {
             writer.write(parsedMessage, encoder)
         } catch (e: IOException) {
-            throw IllegalStateException("Can't parse message data: $parsedMessage by schema: ${schemaIdToSchema[schemaId]}", e)
+            throw IllegalStateException("Can't parse message data: $parsedMessage}", e)
         }
         encoder.flush()
-        val byteBuf = Unpooled.buffer()
-        if (standardMode) {
-            byteBuf.writeByte(MAGIC_BYTE_VALUE)
-            byteBuf.writeInt(schemaId as Int)
-        }
+
         val header = UnsafeByteOperations.unsafeWrap(ByteBufUtil.getBytes(byteBuf))
         return header.concat(UnsafeByteOperations.unsafeWrap(byteArrayOutputStream.toByteArray()))
-    }
-
-
-    private fun findDuplicates(list: Collection<String>): Set<String> {
-        return list.filter { element -> list.count { it == element } > 1 }.toSet()
-    }
-
-    private fun checkSchemaNames(map: Map<*, String>): Map<*, String> {
-        val duplicates = findDuplicates(map.values)
-        check(duplicates.isEmpty()) {
-            "Root element names in schemas must be unique. Duplicate names: ${
-                duplicates.joinToString(
-                    " ,"
-                )
-            }. This name is name of decoded message. It is not possible to resolve schema when encoding."
-        }
-        return map
     }
 
     companion object {
@@ -193,6 +197,7 @@ class AvroCodec(
             return MessageMetadata.newBuilder()
                 .setTimestamp(metadata.timestamp)
                 .setProtocol(protocol)
+                .setId(metadata.id)
                 .putAllProperties(metadata.propertiesMap)
         }
         //FIXME: move to core part
