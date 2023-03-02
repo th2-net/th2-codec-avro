@@ -67,14 +67,14 @@ avroMessageIdToDictionaryAlias:
   '3': "${dictionary_link:avro-schema-3-dictionary}"
 sessionAliasToDictionaryAlias:
   'sessionAlias1': "${dictionary_link:avro-schema-1-dictionary}"
-  'sessionAlias2': "${dictionary_link:avro-schema-2-dictionary}"
-  'sessionAlias3': "${dictionary_link:avro-schema-3-dictionary}"
+  'sessionGroup1Alias*': "${dictionary_link:avro-schema-2-dictionary}"
+  '???????Group2Alias*': "${dictionary_link:avro-schema-3-dictionary}"
 ```
 **enableIdPrefixEnumFields** - prefix setting for UNION fields. If `false`, use prefix as `AVRO data type`(for example `Record-`, `Map-`), if `true` then use `schema id` prefix(for example `Id0-`, `Id3-`). The default value is `false`
 
 **sessionAliasToDictionaryAlias** - matching `schema id` pairs with its `alias` available for loading in the pipelineCodecContext.
 
-**avroMessageIdToDictionaryAlias** - matching `session alias` pairs with its `alias` available for loading in the pipelineCodecContext.
+**avroMessageIdToDictionaryAlias** - matching `session alias` pairs with its `alias` available for loading in the pipelineCodecContext. For `session alias` supported `wildcard`.
 
 Only one of settings `sessionAliasToDictionaryAlias` or `avroMessageIdToDictionaryAlias` can be used
 
