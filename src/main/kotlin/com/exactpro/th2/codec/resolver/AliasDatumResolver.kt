@@ -19,6 +19,7 @@ import com.exactpro.th2.codec.MessageDatumReader
 import com.exactpro.th2.codec.MessageDatumWriter
 import org.apache.avro.Schema
 import org.apache.commons.io.FilenameUtils
+import java.lang.IllegalStateException
 
 class AliasDatumResolver(
     aliasToSchema: Map<String, Schema>,
@@ -52,15 +53,13 @@ class AliasDatumResolver(
     )
 
     override fun getReader(value: String): MessageDatumReader {
-        return checkNotNull(
-            datumReadersCache[value] ?: resolveReadAlias(value)
-        ) { "No reader found for session alias: $value" }
+        return datumReadersCache[value] ?: resolveReadAlias(value)
+        ?: throw IllegalStateException("No reader found for session alias: $value")
     }
 
     override fun getWriter(value: String): MessageDatumWriter {
-        return checkNotNull(
-            datumWritersCache[value] ?: resolveWriteAlias(value)
-        ) { "No writer found for session alias: $value" }
+        return datumWritersCache[value] ?: resolveWriteAlias(value)
+        ?: throw IllegalStateException("No writer found for session alias: $value")
     }
 
     private fun resolveReadAlias(alias: String): MessageDatumReader? {

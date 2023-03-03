@@ -105,7 +105,7 @@ class AvroCodec(
             id = schemaId
         } else {
             check(sessionAlias.isNotEmpty()) {"Session alias cannot be empty. Raw message: $rawMessage"}
-            reader = checkNotNull(aliasResolver!!.getReader(sessionAlias)) { "No reader found for session alias: $sessionAlias" }
+            reader = aliasResolver!!.getReader(sessionAlias)
             decoder = DecoderFactory.get().binaryDecoder(bytes, null)
             id = sessionAlias
         }
@@ -114,7 +114,7 @@ class AvroCodec(
                 .apply { if (rawMessage.hasParentEventId()) this.parentEventId = rawMessage.parentEventId }
                 .setMetadata(
                     rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
-                        .setMessageType(checkNotNull(reader.schema.name) { "No message name found for id: $id" })
+                        .setMessageType(reader.schema.name)
                 )
                 .build()
 
@@ -166,7 +166,7 @@ class AvroCodec(
             schemaIdResolver!!.getWriter(schemaId)
         } else {
             check(sessionAlias.isNotEmpty()) {"Session alias cannot be empty. Parsed message: $parsedMessage"}
-            checkNotNull(aliasResolver!!.getWriter(sessionAlias)) { "No writer found for session alias: $sessionAlias" }
+            aliasResolver!!.getWriter(sessionAlias)
         }
         val byteArrayOutputStream = ByteArrayOutputStream()
         val encoder: Encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null)
