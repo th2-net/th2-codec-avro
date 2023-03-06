@@ -19,63 +19,69 @@ import com.exactpro.th2.codec.MessageDatumReader
 import com.exactpro.th2.codec.MessageDatumWriter
 import org.apache.avro.Schema
 import org.apache.commons.io.FilenameUtils
-import java.util.*
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 
 class AliasDatumResolver(
     aliasToSchema: Map<String, Schema>,
     enableIdPrefixEnumFields: Boolean = false
 ) : IDatumResolver<String> {
-    private val datumReadersCache: MutableMap<String, MessageDatumReader> = Collections.synchronizedMap(mutableMapOf())
-    private val datumWritersCache: MutableMap<String, MessageDatumWriter> = Collections.synchronizedMap(mutableMapOf())
+    private val datumCache: MutableMap<String, DatumPair> = mutableMapOf()
     private val wildcardAliases: List<Alias>
+    private val lock: Lock = ReentrantLock()
 
     init {
         val (wildcardAliases, simpleAliases) = aliasToSchema.toList().map {
             Alias(
                 it.first,
-                MessageDatumReader(it.second, enableIdPrefixEnumFields),
-                MessageDatumWriter(it.second, enableIdPrefixEnumFields)
+                DatumPair(
+                    MessageDatumReader(it.second, enableIdPrefixEnumFields),
+                    MessageDatumWriter(it.second, enableIdPrefixEnumFields)
+                )
             )
         }.partition { isWildcard(it.wildcardAlias) }
 
         simpleAliases.forEach { aliasElement ->
             val alias = aliasElement.wildcardAlias
-            datumReadersCache[alias] = aliasElement.reader
-            datumWritersCache[alias] = aliasElement.writer
+            datumCache[alias] = aliasElement.datums
         }
         this.wildcardAliases = wildcardAliases
     }
 
     data class Alias(
         val wildcardAlias: String,
+        val datums: DatumPair
+    )
+
+    data class DatumPair(
         val reader: MessageDatumReader,
         val writer: MessageDatumWriter
     )
 
     override fun getReader(value: String): MessageDatumReader {
-        return datumReadersCache[value] ?: resolveReadAlias(value)
-        ?: throw IllegalStateException("No reader found for session alias: $value")
+        return getDatums(value)?.reader ?: throw IllegalStateException("No reader found for session alias: $value")
     }
 
     override fun getWriter(value: String): MessageDatumWriter {
-        return datumWritersCache[value] ?: resolveWriteAlias(value)
-        ?: throw IllegalStateException("No writer found for session alias: $value")
+        return getDatums(value)?.writer ?: throw IllegalStateException("No writer found for session alias: $value")
     }
 
-    private fun resolveReadAlias(alias: String): MessageDatumReader? {
-        return resolveAlias(alias)?.reader
+    private fun getDatums(value: String): DatumPair? {
+        lock.lock()
+        try {
+            return datumCache[value] ?: resolveAlias(value)
+        } finally {
+            lock.unlock()
+        }
     }
 
-    private fun resolveWriteAlias(alias: String): MessageDatumWriter? {
-        return resolveAlias(alias)?.writer
-    }
 
-    private fun resolveAlias(alias: String): Alias? {
+    private fun resolveAlias(alias: String): DatumPair? {
         wildcardAliases.forEach { aliasElement ->
             if (FilenameUtils.wildcardMatch(alias, aliasElement.wildcardAlias)) {
-                datumReadersCache[alias] = aliasElement.reader
-                datumWritersCache[alias] = aliasElement.writer
-                return aliasElement
+                val datums = aliasElement.datums
+                datumCache[alias] = datums
+                return datums
             }
         }
         return null
