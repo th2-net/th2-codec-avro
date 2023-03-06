@@ -19,15 +19,15 @@ import com.exactpro.th2.codec.MessageDatumReader
 import com.exactpro.th2.codec.MessageDatumWriter
 import org.apache.avro.Schema
 import org.apache.commons.io.FilenameUtils
-import java.lang.IllegalStateException
+import java.util.*
 
 class AliasDatumResolver(
     aliasToSchema: Map<String, Schema>,
     enableIdPrefixEnumFields: Boolean = false
 ) : IDatumResolver<String> {
-    private val datumReadersCache: MutableMap<String, MessageDatumReader> = mutableMapOf()
-    private val datumWritersCache: MutableMap<String, MessageDatumWriter> = mutableMapOf()
-    private var wildcardAliases: Array<Alias>
+    private val datumReadersCache: MutableMap<String, MessageDatumReader> = Collections.synchronizedMap(mutableMapOf())
+    private val datumWritersCache: MutableMap<String, MessageDatumWriter> = Collections.synchronizedMap(mutableMapOf())
+    private val wildcardAliases: List<Alias>
 
     init {
         val (wildcardAliases, simpleAliases) = aliasToSchema.toList().map {
@@ -43,7 +43,7 @@ class AliasDatumResolver(
             datumReadersCache[alias] = aliasElement.reader
             datumWritersCache[alias] = aliasElement.writer
         }
-        this.wildcardAliases = wildcardAliases.toTypedArray()
+        this.wildcardAliases = wildcardAliases
     }
 
     data class Alias(
