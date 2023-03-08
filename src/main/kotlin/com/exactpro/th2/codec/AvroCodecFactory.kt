@@ -48,9 +48,11 @@ class AvroCodecFactory : IPipelineCodecFactory {
                 .xor(sessionAliasToDictionaryAlias.isEmpty())
         ) { "One of parameters avroMessageIdToDictionaryAlias and sessionAliasToDictionaryAlias can not be empty" }
 
-        val schemaIdToSchema = avroMessageIdToDictionaryAlias.ifEmpty { null }?.mapValues { loadSchema(it.value) }
-        val sessionAliasToSchema = sessionAliasToDictionaryAlias.ifEmpty { null }?.mapValues { loadSchema(it.value) }
-        return AvroCodec(schemaIdToSchema, sessionAliasToSchema, codecSettings)
+        return if (avroMessageIdToDictionaryAlias.isEmpty()) {
+            AliasAvroCodec(sessionAliasToDictionaryAlias.mapValues { loadSchema(it.value) }, codecSettings)
+        } else {
+            StandardAvroCodec(avroMessageIdToDictionaryAlias.mapValues { loadSchema(it.value) }, codecSettings)
+        }
     }
 
     private fun loadSchema(schemaAlias: DictionaryAlias): Schema {
