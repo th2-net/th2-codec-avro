@@ -3,7 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.6.21'
     // for run ./gradlew jmh
     id 'me.champeau.jmh' version '0.6.8'
-    id "org.owasp.dependencycheck" version "8.1.0"
+    id "org.owasp.dependencycheck" version "8.1.2"
 }
 
 apply plugin: 'application'
