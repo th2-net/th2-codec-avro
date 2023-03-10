@@ -15,9 +15,11 @@
  */
 package com.exactpro.th2.codec
 
+import com.exactpro.th2.codec.api.DictionaryAlias
+import com.exactpro.th2.codec.api.IPipelineCodecContext
 import com.exactpro.th2.common.grpc.*
+import com.exactpro.th2.common.schema.dictionary.DictionaryType
 import com.google.protobuf.ByteString
-import org.apache.avro.Schema
 import org.apache.avro.Schema.Parser
 import org.apache.avro.generic.GenericDatumWriter
 import org.apache.avro.io.BinaryEncoder
@@ -26,19 +28,21 @@ import org.apache.avro.util.RandomData
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
 import javax.xml.bind.DatatypeConverter
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Disabled
 
 class TestAvroCodec {
-    private val schemaIdToSchema = mapOf(
-        1 to getSchema("big_schema.avsc"),
-        2 to getSchema("big_schema_without_union.avsc"),
-        3 to getSchema("schema_logical_types.avsc"),
-        4 to getSchema("union_schema_with_logical_types.avsc")
+    private val pipelineCodecContext = CodecContext()
+    private val codecFactory: AvroCodecFactory = AvroCodecFactory().apply {init(pipelineCodecContext)}
+    private val schemaIdToSchemaAlias = mapOf(
+        1 to SchemaAlias.BIG_SCHEMA.alias,
+        2 to SchemaAlias.BIG_SCHEMA_WITHOUT_UNION.alias,
+        3 to SchemaAlias.SCHEMA_LOGICAL_TYPES.alias,
+        4 to SchemaAlias.UNION_SCHEMA_WITH_LOGICAL_TYPES.alias
     )
-    private var codec: AvroCodec = AvroCodec(schemaIdToSchema, AvroCodecSettings(emptyMap()))
-
+    private var codec = codecFactory.create(AvroCodecSettings(schemaIdToSchemaAlias))
     @Test
     fun `test full decode encode`() {
         val rawBytes =
@@ -49,12 +53,38 @@ class TestAvroCodec {
     }
     @Test
     fun `test full decode encode union id prefix`() {
-        codec = AvroCodec(schemaIdToSchema, AvroCodecSettings(emptyMap(), true))
+        codec = codecFactory.create(AvroCodecSettings(schemaIdToSchemaAlias, emptyMap(), true))
         val rawBytes =
             DatatypeConverter.parseHexBinary(
                 "00000000010001000001B3AAAFFC030002D190BEF38A98E0C01C029AB9EDDF8CCDDFA1B40100ADEAA4E8EFC8F8ED0BE0FB083E027CB77F3F0080AC373E388777341CC7B43F024C3A68BEBB13C03F0053D30639AA9BEA3F143F34DA30EBF67E46854F0002046F720218746668676E706664616D7265001C6A627867647472707675726D7068000000000000020246676E7466677365746D7575656163766D627678697473626D707979717063636D64657900020A1E66666366716C6C6C676F64776865631267717177706B7463711870697367676B776B6E6D6D6E00127661756C736F64716B00020A4867726B67666B626467676F666B67657373756F776C69646B6365726B6667646177686D680E726C6F63737371286D63737378656F6865616C6C79657269767477761A796E76757575616566616B6668166763626B77676A796E77640A746C746C6D4C6F6E716B716A61636866626279786C6879677276696F6675756A716C706C686667636B6A6C790E6E6468786D77711472637976746A6B636A73486C6375796A65727572616D75737278706C7869636772676C6F7967756A61646761616A670000000640686164746D766A70636F71706573677870736C737766706271726A757963756C16757076796D6C6A6A6476640A6C6E6B796B0467650A676F7864742E6F6D686C76787070686E6F79716171777771636569746600160226020202F48281810E02009FF4B6D3A2B985D0B501001870233F02EFA688C70D02CC94D9F7080293F89FDD0E000002C5A7FFAE050286DA90C30C000A14686A746B79626F626F642A6A627176616170686476637763746C6A6A6D65736B266E6B6568627371736D76696D756B646E63737034617071667979726C747264676B757972636677767367696270654A67696A696868646A66666F756A666567676C796D766D797571716469616C79656F64786471166E6477626E7478726F6C6E42796A79686F6D756279746D6C6772616E656C70666561686B66796C6E6B70716C68306B7173626F767970676F6270757465627172656B6B796B61206E7062647061786D66726D67756C79660E7569667767676F0002E7ACC49E03"
             )
         decodeToEncode(rawBytes, 37)
+    }
+    @Test
+    fun `test full decode encode no standard mode`() {
+        val sessionAlias = SchemaAlias.BIG_SCHEMA.alias
+        val sessionAliasToSchema = mapOf(
+            sessionAlias to sessionAlias
+        )
+        codec = codecFactory.create(AvroCodecSettings(emptyMap(), sessionAliasToSchema))
+        val rawBytes =
+            DatatypeConverter.parseHexBinary(
+                "0001000001B3AAAFFC030002D190BEF38A98E0C01C029AB9EDDF8CCDDFA1B40100ADEAA4E8EFC8F8ED0BE0FB083E027CB77F3F0080AC373E388777341CC7B43F024C3A68BEBB13C03F0053D30639AA9BEA3F143F34DA30EBF67E46854F0002046F720218746668676E706664616D7265001C6A627867647472707675726D7068000000000000020246676E7466677365746D7575656163766D627678697473626D707979717063636D64657900020A1E66666366716C6C6C676F64776865631267717177706B7463711870697367676B776B6E6D6D6E00127661756C736F64716B00020A4867726B67666B626467676F666B67657373756F776C69646B6365726B6667646177686D680E726C6F63737371286D63737378656F6865616C6C79657269767477761A796E76757575616566616B6668166763626B77676A796E77640A746C746C6D4C6F6E716B716A61636866626279786C6879677276696F6675756A716C706C686667636B6A6C790E6E6468786D77711472637976746A6B636A73486C6375796A65727572616D75737278706C7869636772676C6F7967756A61646761616A670000000640686164746D766A70636F71706573677870736C737766706271726A757963756C16757076796D6C6A6A6476640A6C6E6B796B0467650A676F7864742E6F6D686C76787070686E6F79716171777771636569746600160226020202F48281810E02009FF4B6D3A2B985D0B501001870233F02EFA688C70D02CC94D9F7080293F89FDD0E000002C5A7FFAE050286DA90C30C000A14686A746B79626F626F642A6A627176616170686476637763746C6A6A6D65736B266E6B6568627371736D76696D756B646E63737034617071667979726C747264676B757972636677767367696270654A67696A696868646A66666F756A666567676C796D766D797571716469616C79656F64786471166E6477626E7478726F6C6E42796A79686F6D756279746D6C6772616E656C70666561686B66796C6E6B70716C68306B7173626F767970676F6270757465627172656B6B796B61206E7062647061786D66726D67756C79660E7569667767676F0002E7ACC49E03"
+            )
+        decodeToEncode(rawBytes, 37, sessionAlias)
+    }
+    @Test
+    fun `test full decode encode no standard mode wildcard alias`() {
+        val sessionAlias = SchemaAlias.BIG_SCHEMA.alias
+        val sessionAliasToSchema = mapOf(
+            sessionAlias.dropLast(1) + '*' to sessionAlias
+        )
+        codec = codecFactory.create(AvroCodecSettings(emptyMap(), sessionAliasToSchema))
+        val rawBytes =
+            DatatypeConverter.parseHexBinary(
+                "0001000001B3AAAFFC030002D190BEF38A98E0C01C029AB9EDDF8CCDDFA1B40100ADEAA4E8EFC8F8ED0BE0FB083E027CB77F3F0080AC373E388777341CC7B43F024C3A68BEBB13C03F0053D30639AA9BEA3F143F34DA30EBF67E46854F0002046F720218746668676E706664616D7265001C6A627867647472707675726D7068000000000000020246676E7466677365746D7575656163766D627678697473626D707979717063636D64657900020A1E66666366716C6C6C676F64776865631267717177706B7463711870697367676B776B6E6D6D6E00127661756C736F64716B00020A4867726B67666B626467676F666B67657373756F776C69646B6365726B6667646177686D680E726C6F63737371286D63737378656F6865616C6C79657269767477761A796E76757575616566616B6668166763626B77676A796E77640A746C746C6D4C6F6E716B716A61636866626279786C6879677276696F6675756A716C706C686667636B6A6C790E6E6468786D77711472637976746A6B636A73486C6375796A65727572616D75737278706C7869636772676C6F7967756A61646761616A670000000640686164746D766A70636F71706573677870736C737766706271726A757963756C16757076796D6C6A6A6476640A6C6E6B796B0467650A676F7864742E6F6D686C76787070686E6F79716171777771636569746600160226020202F48281810E02009FF4B6D3A2B985D0B501001870233F02EFA688C70D02CC94D9F7080293F89FDD0E000002C5A7FFAE050286DA90C30C000A14686A746B79626F626F642A6A627176616170686476637763746C6A6A6D65736B266E6B6568627371736D76696D756B646E63737034617071667979726C747264676B757972636677767367696270654A67696A696868646A66666F756A666567676C796D766D797571716469616C79656F64786471166E6477626E7478726F6C6E42796A79686F6D756279746D6C6772616E656C70666561686B66796C6E6B70716C68306B7173626F767970676F6270757465627172656B6B796B61206E7062647061786D66726D67756C79660E7569667767676F0002E7ACC49E03"
+            )
+        decodeToEncode(rawBytes, 37, sessionAlias)
     }
 
     @Test
@@ -84,20 +114,22 @@ class TestAvroCodec {
         decodeToEncode(rawBytes, 1)
     }
 
-    private fun decodeToEncode(rawBytes: ByteArray?, expected: Int) {
+    private fun decodeToEncode(rawBytes: ByteArray?, expected: Int, sessionAlias: String? = null) {
         val body = ByteString.copyFrom(rawBytes)
-        val decodeGroup = decode(body)
+        val decodeGroup = decode(body, sessionAlias)
         val actualCountFields = decodeGroup.messagesList[0].message.fieldsMap.size
         assertEquals(expected, actualCountFields)
         val encodeBody = encode(decodeGroup)
         assertEquals(body, encodeBody)
     }
 
-    private fun decode(body: ByteString?): MessageGroup {
+    private fun decode(body: ByteString?, sessionAlias: String?): MessageGroup {
         val rawMessage = RawMessage.newBuilder()
             .setMetadata(
                 RawMessageMetadata.newBuilder()
-                    .setId(MessageID.newBuilder().setSequence(1))
+                    .setId(MessageID.newBuilder()
+                        .setSequence(1)
+                        .apply { if(sessionAlias != null) setConnectionId(ConnectionID.newBuilder().setSessionAlias(sessionAlias))})
                     .setProtocol(AvroCodecFactory.PROTOCOL)
             )
             .setBody(body)
@@ -115,14 +147,10 @@ class TestAvroCodec {
         return encodeMessages[0].rawMessage.body
     }
 
-    private fun getSchema(name: String): Schema =
-        this::class.java.classLoader.getResourceAsStream("schemas${File.separatorChar}${name}")
-            .use(Parser()::parse)
-
     @Disabled
     @Test
     fun generateAvroRandomDataBySchema() {
-        val schema = schemaIdToSchema[4]
+        val schema = schemaIdToSchemaAlias[4]?.let { pipelineCodecContext[it].use(Parser()::parse) }
         val writer = GenericDatumWriter<Any>()
         writer.setSchema(schema)
         val outputStream = ByteArrayOutputStream(8192)
@@ -133,5 +161,32 @@ class TestAvroCodec {
         encoder.flush()
         val data = outputStream.toByteArray()
         println(DatatypeConverter.printHexBinary(data))
+    }
+    class CodecContext: IPipelineCodecContext{
+        override fun get(alias: DictionaryAlias): InputStream {
+            return this::class.java.classLoader.getResourceAsStream("schemas${File.separatorChar}${alias}$SCHEMA_EXTENSION")!!
+        }
+
+        @Deprecated(
+            "Dictionary types will be removed in future releases of infra",
+            replaceWith = ReplaceWith("getByAlias(alias)")
+        )
+        override fun get(type: DictionaryType): InputStream {
+            TODO("Not yet implemented")
+        }
+
+        override fun getDictionaryAliases(): Set<String> {
+            TODO("Not yet implemented")
+        }
+
+    }
+    enum class SchemaAlias(val alias: String) {
+        BIG_SCHEMA("big_schema"),
+        BIG_SCHEMA_WITHOUT_UNION("big_schema_without_union"),
+        SCHEMA_LOGICAL_TYPES("schema_logical_types"),
+        UNION_SCHEMA_WITH_LOGICAL_TYPES("union_schema_with_logical_types");
+    }
+    companion object {
+        private const val SCHEMA_EXTENSION = ".avsc"
     }
 }
