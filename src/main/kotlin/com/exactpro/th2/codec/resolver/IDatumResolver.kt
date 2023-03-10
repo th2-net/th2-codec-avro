@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.exactpro.th2.codec
+package com.exactpro.th2.codec.resolver
 
-import com.exactpro.th2.codec.api.IPipelineCodecSettings
+import com.exactpro.th2.codec.MessageDatumReader
+import com.exactpro.th2.codec.MessageDatumWriter
 
-class AvroCodecSettings(
-    val avroMessageIdToDictionaryAlias: Map<Int, String> = emptyMap(),
-    val sessionAliasToDictionaryAlias: Map<String, String> = emptyMap(),
-    val enableIdPrefixEnumFields: Boolean = false
-) : IPipelineCodecSettings
+interface IDatumResolver<in T> {
+    fun getReader(value: T): MessageDatumReader
+
+    fun getWriter(value: T): MessageDatumWriter
+}
