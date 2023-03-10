@@ -81,6 +81,7 @@ abstract class AbstractAvroCodec(
                 val sessionAlias = parsedMessage.sessionAlias
                 val messageBody = encodeMessage(parsedMessage, sessionAlias)
                 val rawMessage = RawMessage.newBuilder()
+                    .apply { if (parsedMessage.hasParentEventId()) this.parentEventId = parsedMessage.parentEventId }
                     .setMetadata(
                         parsedMessage.toRawMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
                     )
