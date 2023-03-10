@@ -1,0 +1,16 @@
+{
+   "type":"record",
+   "name":"unionWithLogicalTypes",
+   "fields":[
+      {
+         "name":"enumWithLogical",
+         "type":[
+            "null",
+            {
+               "type":"int",
+               "logicalType":"date"
+            }
+         ]
+      }
+   ]
+}
