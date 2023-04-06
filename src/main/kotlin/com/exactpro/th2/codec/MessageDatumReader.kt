@@ -30,6 +30,7 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.*
 import javax.xml.bind.DatatypeConverter
+import mu.KotlinLogging
 
 class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
     GenericDatumReader<Message.Builder>(schema, schema, getData()) {
@@ -57,7 +58,7 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
     override fun readField(r: Any, f: Schema.Field, oldDatum: Any?, decoder: ResolvingDecoder, state: Any?) {
         var readValue = read(oldDatum, f.schema(), decoder)
         var fieldName = f.name()
-
+        LOGGER.trace { "Read value ${f.name()}: $readValue" }
         if (readValue is UnionData) {
             val description = readValue.description
             readValue = readValue.value
@@ -98,6 +99,18 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
         return Message.newBuilder()
     }
 
+    override fun convert(datum: Any?, schema: Schema?, type: LogicalType?, conversion: Conversion<*>?): Any {
+        val convertedValue = super.convert(datum, schema, type, conversion)
+        if(LOGGER.isTraceEnabled) {
+            val rawValueString = when(datum) {
+                is ByteBuffer -> datum.asHexString()
+                else -> datum.toString()
+            }
+            LOGGER.trace { "Converting value using logical type ${type?.name} from $rawValueString to $convertedValue" }
+        }
+        return convertedValue
+    }
+
     private fun ByteBuffer.asHexString(): String {
         val bytes = ByteArray(this.remaining())
         this.get(bytes)
@@ -116,6 +129,7 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
         val description: String
     )
     companion object {
+        private val LOGGER = KotlinLogging.logger {  }
         fun getData(): GenericData? {
             return GenericData.get().apply {
                 addLogicalTypeConversion(Conversions.DecimalConversion())
