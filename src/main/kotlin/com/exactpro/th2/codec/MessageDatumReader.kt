@@ -21,6 +21,7 @@ import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.value.toValue
+import com.google.protobuf.TextFormat.shortDebugString
 import org.apache.avro.*
 import org.apache.avro.data.TimeConversions.*
 import org.apache.avro.generic.*
@@ -67,7 +68,9 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
             }
         }
         if (readValue != null) {
-            (r as Message.Builder).addField(fieldName, readValue.convertToValue())
+            val th2Value = readValue.convertToValue()
+            LOGGER.trace { "Read field ${f.name()}: ${shortDebugString(th2Value)}" }
+            (r as Message.Builder).addField(fieldName, th2Value)
         }
     }
 
