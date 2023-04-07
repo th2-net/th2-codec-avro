@@ -21,6 +21,7 @@ import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.value.toValue
+import com.google.protobuf.TextFormat.shortDebugString
 import org.apache.avro.*
 import org.apache.avro.data.TimeConversions.*
 import org.apache.avro.generic.*
@@ -58,7 +59,6 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
     override fun readField(r: Any, f: Schema.Field, oldDatum: Any?, decoder: ResolvingDecoder, state: Any?) {
         var readValue = read(oldDatum, f.schema(), decoder)
         var fieldName = f.name()
-        LOGGER.trace { "Read value ${f.name()}: $readValue" }
         if (readValue is UnionData) {
             val description = readValue.description
             readValue = readValue.value
@@ -67,7 +67,9 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
             }
         }
         if (readValue != null) {
-            (r as Message.Builder).addField(fieldName, readValue.convertToValue())
+            val convertedValue = readValue.convertToValue()
+            LOGGER.trace { "Read value ${f.name()}: ${shortDebugString(convertedValue)}" }
+            (r as Message.Builder).addField(fieldName, convertedValue)
         }
     }
 
