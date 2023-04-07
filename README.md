@@ -1,4 +1,4 @@
-# AVRO codec (2.2.0)
+# AVRO codec (2.2.1)
 ## Description
 Designed for decode AVRO raw messages to parsed messages and encode back.
 It is based on [th2-codec](https://github.com/th2-net/th2-codec).
@@ -79,6 +79,9 @@ sessionAliasToDictionaryAlias:
 Only one of settings `sessionAliasToDictionaryAlias` or `avroMessageIdToDictionaryAlias` can be used
 
 ## Release notes
+
+### 2.2.1
+* Added detailed TRACE logging for parsing into class com.exactpro.th2.codec.MessageDatumReader
 
 ### 2.2.0
 + Added mode resolution schema by session alias
