@@ -59,7 +59,6 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
     override fun readField(r: Any, f: Schema.Field, oldDatum: Any?, decoder: ResolvingDecoder, state: Any?) {
         var readValue = read(oldDatum, f.schema(), decoder)
         var fieldName = f.name()
-        LOGGER.trace { "Read value ${f.name()}: $readValue" }
         if (readValue is UnionData) {
             val description = readValue.description
             readValue = readValue.value
