@@ -68,7 +68,7 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
         }
         if (readValue != null) {
             val th2Value = readValue.convertToValue()
-            LOGGER.trace { "Read field ${f.name()}: ${shortDebugString(th2Value)}" }
+            LOGGER.trace { "Read field ${f.name()}: ${shortDebugString(th2Value)} (origin: $readValue)" }
             (r as Message.Builder).addField(fieldName, th2Value)
         }
     }
