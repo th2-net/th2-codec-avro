@@ -79,8 +79,8 @@ configurations.implementation {
 dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
 
-    implementation 'com.exactpro.th2:common:5.2.0-dev' //FIXME: migrate to release
-    implementation 'com.exactpro.th2:codec:5.2.0-dev'
+    implementation 'com.exactpro.th2:common:5.2.0-separate-executor-+' //FIXME: migrate to release
+    implementation 'com.exactpro.th2:codec:5.2.0-new-proto-5111859401-e24c7b8-SNAPSHOT'
     implementation 'javax.xml.bind:jaxb-api:2.3.1'
 
     implementation 'io.netty:netty-buffer'
@@ -103,6 +103,7 @@ dependencies {
     jmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.36'
 
     implementation 'org.apache.avro:avro:1.11.1'
+    implementation 'commons-io:commons-io:2.12.0'
 }
 
 test {

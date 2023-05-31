@@ -13,12 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.api.IPipelineCodec
+import com.exactpro.th2.codec.util.toJson
 import com.exactpro.th2.codec.util.toMessageMetadataBuilder
 import com.exactpro.th2.codec.util.toRawMetadataBuilder
-import com.exactpro.th2.common.grpc.*
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.RawMessage
+import com.exactpro.th2.common.grpc.MessageGroup as ProtoMessageGroup
+import com.exactpro.th2.common.grpc.Message as ProtoMessage
+import com.exactpro.th2.common.grpc.RawMessage as ProtoRawMessage
+import com.exactpro.th2.common.grpc.AnyMessage as ProtoAnyMessage
 import com.exactpro.th2.common.message.sessionAlias
 import com.exactpro.th2.common.message.toJson
 import com.google.protobuf.ByteString
@@ -38,15 +46,14 @@ abstract class AbstractAvroCodec(
 ) : IPipelineCodec {
     protected val enableIdPrefixEnumFields = settings.enableIdPrefixEnumFields
 
-    override fun decode(messageGroup: MessageGroup): MessageGroup {
+    override fun decode(messageGroup: ProtoMessageGroup): ProtoMessageGroup {
         val messages = messageGroup.messagesList
 
-
-        if (messages.isEmpty().or(messages.stream().allMatch(AnyMessage::hasMessage))) {
+        if (messages.isEmpty().or(messages.stream().allMatch(ProtoAnyMessage::hasMessage))) {
             return messageGroup
         }
 
-        val msgBuilder = MessageGroup.newBuilder()
+        val msgBuilder = ProtoMessageGroup.newBuilder()
         messages.forEach { message ->
             if (!message.hasRawMessage().or(message.message.metadata.run {
                     protocol.isNotEmpty().and(protocol != AvroCodecFactory.PROTOCOL)
@@ -56,22 +63,33 @@ abstract class AbstractAvroCodec(
                 val rawMessage = message.rawMessage
                 val sessionAlias = rawMessage.sessionAlias
                 val decodeMessage = decodeRawMessage(rawMessage, sessionAlias)
-                msgBuilder.addMessages(AnyMessage.newBuilder().setMessage(decodeMessage).build())
+                msgBuilder.addMessages(ProtoAnyMessage.newBuilder().setMessage(decodeMessage).build())
             }
         }
         return msgBuilder.build()
     }
 
-    abstract  fun decodeRawMessage(rawMessage: RawMessage, sessionAlias: String): Message
+    override fun decode(messageGroup: MessageGroup): MessageGroup = MessageGroup(
+        messageGroup.messages.mapTo(mutableListOf()) {
+            if (it !is RawMessage || (it.protocol.isNotEmpty() && (it.protocol != AvroCodecFactory.PROTOCOL))) {
+                it
+            } else {
+                decodeRawMessage(it, it.id.sessionAlias)
+            }
+        }
+    )
 
-    override fun encode(messageGroup: MessageGroup): MessageGroup {
+    abstract fun decodeRawMessage(rawMessage: ProtoRawMessage, sessionAlias: String): ProtoMessage
+    abstract fun decodeRawMessage(rawMessage: RawMessage, sessionAlias: String): ParsedMessage
+
+    override fun encode(messageGroup: ProtoMessageGroup): ProtoMessageGroup {
         val messages = messageGroup.messagesList
 
-        if (messages.isEmpty().or(messages.stream().allMatch(AnyMessage::hasRawMessage))) {
+        if (messages.isEmpty().or(messages.stream().allMatch(ProtoAnyMessage::hasRawMessage))) {
             return messageGroup
         }
 
-        val msgBuilder = MessageGroup.newBuilder()
+        val msgBuilder = ProtoMessageGroup.newBuilder()
         Unpooled.buffer()
         messages.forEach { message ->
             if (!message.hasMessage().or(message.message.metadata.run {
@@ -82,7 +100,7 @@ abstract class AbstractAvroCodec(
                 val parsedMessage = message.message
                 val sessionAlias = parsedMessage.sessionAlias
                 val messageBody = encodeMessage(parsedMessage, sessionAlias)
-                val rawMessage = RawMessage.newBuilder()
+                val rawMessage = ProtoRawMessage.newBuilder()
                     .apply { if (parsedMessage.hasParentEventId()) this.parentEventId = parsedMessage.parentEventId }
                     .setMetadata(
                         parsedMessage.toRawMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
@@ -90,24 +108,44 @@ abstract class AbstractAvroCodec(
                     .setBody(messageBody)
                     .build()
 
-                msgBuilder.addMessages(AnyMessage.newBuilder().setRawMessage(rawMessage).build())
+                msgBuilder.addMessages(ProtoAnyMessage.newBuilder().setRawMessage(rawMessage).build())
 
             }
         }
         return msgBuilder.build()
     }
 
-    abstract fun encodeMessage(parsedMessage: Message, sessionAlias: String): ByteString?
+    override fun encode(messageGroup: MessageGroup): MessageGroup = MessageGroup(
+        messageGroup.messages.mapTo(mutableListOf()) {
+            if (it !is ParsedMessage || it.protocol.isNotEmpty() && it.protocol != AvroCodecFactory.PROTOCOL) {
+                it
+            } else {
+                val parsedMessage: ParsedMessage = it
+                val sessionAlias = parsedMessage.id.sessionAlias
+                val messageBody = encodeMessage(parsedMessage, sessionAlias)
+                RawMessage(
+                    it.id,
+                    it.eventId,
+                    it.metadata,
+                    AvroCodecFactory.PROTOCOL,
+                    Unpooled.wrappedBuffer(messageBody)
+                )
+            }
+        }
+    )
+
+    abstract fun encodeMessage(parsedMessage: ProtoMessage, sessionAlias: String): ByteString?
+    abstract fun encodeMessage(parsedMessage: ParsedMessage, sessionAlias: String): ByteArray?
 
     protected fun getDecodedData(
         reader: MessageDatumReader,
         decoder: Decoder,
-        rawMessage: RawMessage,
+        rawMessage: ProtoRawMessage,
         bytes: ByteArray?,
         id: Any
-    ): Message {
+    ): ProtoMessage {
         try {
-            return reader.read(Message.newBuilder(), decoder)
+            return reader.read(ProtoMessage.newBuilder(), decoder)
                 .apply { if (rawMessage.hasParentEventId()) this.parentEventId = rawMessage.parentEventId }
                 .setMetadata(
                     rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
@@ -123,9 +161,33 @@ abstract class AbstractAvroCodec(
         }
     }
 
+    protected fun getDecodedData(
+        reader: TransportMessageDatumReader,
+        decoder: Decoder,
+        rawMessage: RawMessage,
+        bytes: ByteArray?,
+        id: Any
+    ): ParsedMessage {
+        try {
+            return ParsedMessage(
+                rawMessage.id,
+                rawMessage.eventId,
+                rawMessage.metadata,
+                AvroCodecFactory.PROTOCOL,
+                reader.schema.name,
+                reader.read(HashMap(), decoder)
+            )
+        } catch (e: IOException) {
+            throw DecodeException(
+                "Can't parse message data: ${DatatypeConverter.printHexBinary(bytes)} by schema id: $id",
+                e
+            )
+        }
+    }
+
     protected fun getEncodedData(
         writer: MessageDatumWriter,
-        parsedMessage: Message,
+        parsedMessage: ProtoMessage,
         byteBuf: ByteBuf?
     ): ByteString? {
         val byteArrayOutputStream = ByteArrayOutputStream()
@@ -139,5 +201,23 @@ abstract class AbstractAvroCodec(
 
         val header = UnsafeByteOperations.unsafeWrap(ByteBufUtil.getBytes(byteBuf))
         return header.concat(UnsafeByteOperations.unsafeWrap(byteArrayOutputStream.toByteArray()))
+    }
+
+    protected fun getEncodedData(
+        writer: TransportMessageDatumWriter,
+        parsedMessage: ParsedMessage,
+        byteBuf: ByteBuf?
+    ): ByteArray {
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        val encoder: Encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null)
+        try {
+            writer.write(parsedMessage.body, encoder)
+        } catch (e: IOException) {
+            throw IllegalStateException("Can't parse message data: ${parsedMessage.toJson()}", e)
+        }
+        encoder.flush()
+
+        val header = if (byteBuf === null) byteArrayOf() else ByteBufUtil.getBytes(byteBuf)
+        return header + byteArrayOutputStream.toByteArray()
     }
 }
