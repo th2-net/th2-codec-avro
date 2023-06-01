@@ -27,7 +27,7 @@ import java.nio.ByteBuffer
 import java.time.*
 
 class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
-    GenericDatumWriter<MutableMap<String, Any>>(schema, getData()) {
+    GenericDatumWriter<Map<String, Any?>>(schema, getData()) {
     @Throws(IOException::class)
     override fun writeField(datum: Any?, f: Schema.Field, out: Encoder, state: Any?) {
         val value = resolveUnionValue(f, datum)
@@ -50,7 +50,8 @@ class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnum
     }
 
     private fun resolveUnionValue(f: Schema.Field, datum: Any?): Any? {
-        val map = (datum as Map<String, Any>)
+        @Suppress("UNCHECKED_CAST")
+        val map = (datum as Map<String, Any?>)
         if (f.schema().type == Schema.Type.UNION) {
             val fieldName =
                 map.keys.firstOrNull { s -> s.endsWith("$UNION_FIELD_NAME_TYPE_DELIMITER${f.name()}") }

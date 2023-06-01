@@ -20,15 +20,12 @@ import com.exactpro.th2.codec.api.IPipelineCodec
 import com.exactpro.th2.codec.util.toJson
 import com.exactpro.th2.codec.util.toMessageMetadataBuilder
 import com.exactpro.th2.codec.util.toRawMetadataBuilder
+import com.exactpro.th2.common.message.sessionAlias
+import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.RawMessage
-import com.exactpro.th2.common.grpc.MessageGroup as ProtoMessageGroup
-import com.exactpro.th2.common.grpc.Message as ProtoMessage
-import com.exactpro.th2.common.grpc.RawMessage as ProtoRawMessage
-import com.exactpro.th2.common.grpc.AnyMessage as ProtoAnyMessage
-import com.exactpro.th2.common.message.sessionAlias
-import com.exactpro.th2.common.message.toJson
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.toByteArray
 import com.google.protobuf.ByteString
 import com.google.protobuf.UnsafeByteOperations
 import io.netty.buffer.ByteBuf
@@ -40,6 +37,10 @@ import org.apache.avro.io.EncoderFactory
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import javax.xml.bind.DatatypeConverter
+import com.exactpro.th2.common.grpc.AnyMessage as ProtoAnyMessage
+import com.exactpro.th2.common.grpc.Message as ProtoMessage
+import com.exactpro.th2.common.grpc.MessageGroup as ProtoMessageGroup
+import com.exactpro.th2.common.grpc.RawMessage as ProtoRawMessage
 
 abstract class AbstractAvroCodec(
     settings: AvroCodecSettings,
@@ -69,15 +70,24 @@ abstract class AbstractAvroCodec(
         return msgBuilder.build()
     }
 
-    override fun decode(messageGroup: MessageGroup): MessageGroup = MessageGroup(
-        messageGroup.messages.mapTo(mutableListOf()) {
-            if (it !is RawMessage || (it.protocol.isNotEmpty() && (it.protocol != AvroCodecFactory.PROTOCOL))) {
-                it
-            } else {
-                decodeRawMessage(it, it.id.sessionAlias)
-            }
+    override fun decode(messageGroup: MessageGroup): MessageGroup {
+        val messages = messageGroup.messages
+        if (messages.isEmpty().or(messages.stream().allMatch { it is ParsedMessage })) {
+            return messageGroup
         }
-    )
+
+        return MessageGroup.builder().apply {
+            messages.forEach { message ->
+                addMessage(
+                    if (message !is RawMessage || (message.protocol.isNotEmpty() && (message.protocol != AvroCodecFactory.PROTOCOL))) {
+                        message
+                    } else {
+                        decodeRawMessage(message, message.id.sessionAlias)
+                    }
+                )
+            }
+        }.build()
+    }
 
     abstract fun decodeRawMessage(rawMessage: ProtoRawMessage, sessionAlias: String): ProtoMessage
     abstract fun decodeRawMessage(rawMessage: RawMessage, sessionAlias: String): ParsedMessage
@@ -115,50 +125,55 @@ abstract class AbstractAvroCodec(
         return msgBuilder.build()
     }
 
-    override fun encode(messageGroup: MessageGroup): MessageGroup = MessageGroup(
-        messageGroup.messages.mapTo(mutableListOf()) {
-            if (it !is ParsedMessage || it.protocol.isNotEmpty() && it.protocol != AvroCodecFactory.PROTOCOL) {
-                it
-            } else {
-                val parsedMessage: ParsedMessage = it
-                val sessionAlias = parsedMessage.id.sessionAlias
-                val messageBody = encodeMessage(parsedMessage, sessionAlias)
-                RawMessage(
-                    it.id,
-                    it.eventId,
-                    it.metadata,
-                    AvroCodecFactory.PROTOCOL,
-                    Unpooled.wrappedBuffer(messageBody)
+    override fun encode(messageGroup: MessageGroup): MessageGroup {
+        val messages = messageGroup.messages
+
+        if (messages.isEmpty().or(messages.stream().allMatch { it is RawMessage })) {
+            return messageGroup
+        }
+
+        return MessageGroup.builder().apply {
+            messages.forEach { message ->
+                addMessage(
+                    if (message !is ParsedMessage || message.protocol.isNotEmpty() && message.protocol != AvroCodecFactory.PROTOCOL) {
+                        message
+                    } else {
+                        val sessionAlias = message.id.sessionAlias
+                        val messageBody = encodeMessage(message, sessionAlias)
+                        RawMessage.builder().apply {
+                            setId(message.id)
+                            message.eventId?.let(this::setEventId)
+                            setMetadata(message.metadata)
+                            setProtocol(AvroCodecFactory.PROTOCOL)
+                            setBody(Unpooled.wrappedBuffer(messageBody))
+                        }.build()
+                    }
                 )
             }
-        }
-    )
+        }.build()
+    }
 
-    abstract fun encodeMessage(parsedMessage: ProtoMessage, sessionAlias: String): ByteString?
-    abstract fun encodeMessage(parsedMessage: ParsedMessage, sessionAlias: String): ByteArray?
+    abstract fun encodeMessage(parsedMessage: ProtoMessage, sessionAlias: String): ByteString
+    abstract fun encodeMessage(parsedMessage: ParsedMessage, sessionAlias: String): ByteArray
 
     protected fun getDecodedData(
         reader: MessageDatumReader,
         decoder: Decoder,
         rawMessage: ProtoRawMessage,
-        bytes: ByteArray?,
+        bytes: ByteArray,
         id: Any
-    ): ProtoMessage {
-        try {
-            return reader.read(ProtoMessage.newBuilder(), decoder)
-                .apply { if (rawMessage.hasParentEventId()) this.parentEventId = rawMessage.parentEventId }
-                .setMetadata(
-                    rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
-                        .setMessageType(reader.schema.name)
-                )
-                .build()
-
-        } catch (e: IOException) {
-            throw DecodeException(
-                "Can't parse message data: ${DatatypeConverter.printHexBinary(bytes)} by schema id: $id",
-                e
-            )
-        }
+    ): ProtoMessage = runCatching {
+        reader.read(ProtoMessage.newBuilder(), decoder)
+            .apply { if (rawMessage.hasParentEventId()) this.parentEventId = rawMessage.parentEventId }
+            .setMetadata(
+                rawMessage.toMessageMetadataBuilder(listOf(AvroCodecFactory.PROTOCOL))
+                    .setMessageType(reader.schema.name)
+            ).build()
+    }.getOrElse {
+        throw DecodeException(
+            "Can't parse message data: ${DatatypeConverter.printHexBinary(bytes)} by schema id: $id",
+            it
+        )
     }
 
     protected fun getDecodedData(
@@ -167,29 +182,27 @@ abstract class AbstractAvroCodec(
         rawMessage: RawMessage,
         bytes: ByteArray?,
         id: Any
-    ): ParsedMessage {
-        try {
-            return ParsedMessage(
-                rawMessage.id,
-                rawMessage.eventId,
-                rawMessage.metadata,
-                AvroCodecFactory.PROTOCOL,
-                reader.schema.name,
-                reader.read(HashMap(), decoder)
-            )
-        } catch (e: IOException) {
-            throw DecodeException(
-                "Can't parse message data: ${DatatypeConverter.printHexBinary(bytes)} by schema id: $id",
-                e
-            )
-        }
+    ): ParsedMessage = runCatching {
+        ParsedMessage.builder().apply {
+            setId(rawMessage.id)
+            rawMessage.eventId?.let(this::setEventId)
+            setMetadata(rawMessage.metadata)
+            setProtocol(AvroCodecFactory.PROTOCOL)
+            setType(reader.schema.name)
+            setBody(reader.read(hashMapOf(), decoder))
+        }.build()
+    }.getOrElse {
+        throw DecodeException(
+            "Can't parse message data: ${DatatypeConverter.printHexBinary(bytes)} by schema id: $id",
+            it
+        )
     }
 
     protected fun getEncodedData(
         writer: MessageDatumWriter,
         parsedMessage: ProtoMessage,
-        byteBuf: ByteBuf?
-    ): ByteString? {
+        byteBuf: ByteBuf
+    ): ByteString {
         val byteArrayOutputStream = ByteArrayOutputStream()
         val encoder: Encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null)
         try {
@@ -206,7 +219,7 @@ abstract class AbstractAvroCodec(
     protected fun getEncodedData(
         writer: TransportMessageDatumWriter,
         parsedMessage: ParsedMessage,
-        byteBuf: ByteBuf?
+        byteBuf: ByteBuf
     ): ByteArray {
         val byteArrayOutputStream = ByteArrayOutputStream()
         val encoder: Encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null)
@@ -217,7 +230,7 @@ abstract class AbstractAvroCodec(
         }
         encoder.flush()
 
-        val header = if (byteBuf === null) byteArrayOf() else ByteBufUtil.getBytes(byteBuf)
+        val header = byteBuf.toByteArray()
         return header + byteArrayOutputStream.toByteArray()
     }
 }

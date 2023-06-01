@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id 'com.palantir.docker' version '0.25.0' apply false
     id 'org.jetbrains.kotlin.jvm' version '1.6.21'
@@ -10,14 +12,6 @@ apply plugin: 'application'
 apply plugin: 'com.palantir.docker'
 apply plugin: 'kotlin-kapt'
 
-ext {
-    sailfishVersion = '3.3.54'
-}
-ext.excludeSailfish = { rcd ->
-    rcd.excludeModule("com.exactpro.sf", "sailfish-common")
-    rcd.excludeModule("com.exactpro.sf", "sailfish-rest-api-client")
-}
-
 group = 'com.exactpro.th2'
 version = release_version
 
@@ -28,27 +22,10 @@ repositories {
     maven {
         name 'Sonatype_snapshots'
         url 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
-        metadataSources {
-            mavenPom()
-            artifact()
-            ignoreGradleMetadataRedirection()
-        }
     }
     maven {
         name 'Sonatype_releases'
         url 'https://s01.oss.sonatype.org/content/repositories/releases/'
-        content {
-            excludeSailfish(it)
-        }
-    }
-    maven {
-        name 'Sonatype_releases'
-        url 'https://s01.oss.sonatype.org/content/repositories/releases/'
-        metadataSources {
-            mavenPom()
-            artifact()
-            ignoreGradleMetadataRedirection()
-        }
     }
     mavenCentral()
 
@@ -72,26 +49,22 @@ jar {
     }
 }
 
-configurations.implementation {
-    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-}
-
 dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
 
-    implementation 'com.exactpro.th2:common:5.2.0-separate-executor-+' //FIXME: migrate to release
-    implementation 'com.exactpro.th2:codec:5.2.0-new-proto-5111859401-e24c7b8-SNAPSHOT'
+    implementation 'com.exactpro.th2:common:5.3.0-json-raw-body-+' //FIXME: migrate to release
+    implementation 'com.exactpro.th2:codec:5.2.0-new-proto-+' //FIXME: migrate to release
     implementation 'javax.xml.bind:jaxb-api:2.3.1'
 
     implementation 'io.netty:netty-buffer'
-
-    compileOnly 'com.google.auto.service:auto-service:1.0.1'
 
     implementation 'org.slf4j:slf4j-api'
 
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
     implementation 'org.jetbrains.kotlin:kotlin-reflect'
     implementation 'io.github.microutils:kotlin-logging:3.0.0'
+
+    compileOnly 'com.google.auto.service:auto-service:1.0.1'
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.9.0"
     testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5:1.6.21'
@@ -128,7 +101,7 @@ docker {
     copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
 }
 
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+tasks.withType(KotlinCompile).configureEach {
     kotlinOptions {
         jvmTarget = "11"
     }

@@ -41,6 +41,7 @@ import java.io.InputStream
 import javax.xml.bind.DatatypeConverter
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Disabled
+import java.time.Instant
 
 class TestAvroCodec {
     private val pipelineCodecContext = CodecContext()
@@ -60,6 +61,7 @@ class TestAvroCodec {
             )
         decodeToEncode(rawBytes, 37)
     }
+
     @Test
     fun `test full decode encode union id prefix`() {
         codec = codecFactory.create(AvroCodecSettings(schemaIdToSchemaAlias, emptyMap(), true))
@@ -132,7 +134,7 @@ class TestAvroCodec {
         decodeToEncode(rawBytes, 1)
     }
 
-    private fun decodeToEncode(rawBytes: ByteArray?, expected: Int, sessionAlias: String? = null) {
+    private fun decodeToEncode(rawBytes: ByteArray, expected: Int, sessionAlias: String? = null) {
         val body = ByteString.copyFrom(rawBytes)
         val decodeGroup = decode(body, sessionAlias)
         val actualCountFields = decodeGroup.messagesList[0].message.fieldsMap.size
@@ -167,11 +169,11 @@ class TestAvroCodec {
         return decodeGroup
     }
 
-    private fun transportDecode(body: ByteArray?, sessionAlias: String?): MessageGroup {
+    private fun transportDecode(body: ByteArray, sessionAlias: String?): MessageGroup {
         val rawMessage = RawMessage(
-            id = MessageId(sessionAlias = sessionAlias ?: "", sequence = 1,),
+            id = MessageId(sessionAlias ?: "", Direction.OUTGOING, 1, Instant.now()),
             protocol = AvroCodecFactory.PROTOCOL,
-            body = if (body != null) Unpooled.wrappedBuffer(body) else Unpooled.EMPTY_BUFFER
+            body = Unpooled.wrappedBuffer(body)
         )
 
         val group = MessageGroup(mutableListOf(rawMessage))
