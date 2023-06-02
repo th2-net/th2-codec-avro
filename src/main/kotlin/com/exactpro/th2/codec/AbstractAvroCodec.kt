@@ -48,14 +48,8 @@ abstract class AbstractAvroCodec(
     protected val enableIdPrefixEnumFields = settings.enableIdPrefixEnumFields
 
     override fun decode(messageGroup: ProtoMessageGroup): ProtoMessageGroup {
-        val messages = messageGroup.messagesList
-
-        if (messages.isEmpty().or(messages.stream().allMatch(ProtoAnyMessage::hasMessage))) {
-            return messageGroup
-        }
-
         val msgBuilder = ProtoMessageGroup.newBuilder()
-        messages.forEach { message ->
+        messageGroup.messagesList.forEach { message ->
             if (!message.hasRawMessage().or(message.message.metadata.run {
                     protocol.isNotEmpty().and(protocol != AvroCodecFactory.PROTOCOL)
                 })) {
@@ -71,13 +65,8 @@ abstract class AbstractAvroCodec(
     }
 
     override fun decode(messageGroup: MessageGroup): MessageGroup {
-        val messages = messageGroup.messages
-        if (messages.isEmpty().or(messages.stream().allMatch { it is ParsedMessage })) {
-            return messageGroup
-        }
-
         return MessageGroup.builder().apply {
-            messages.forEach { message ->
+            messageGroup.messages.forEach { message ->
                 addMessage(
                     if (message !is RawMessage || (message.protocol.isNotEmpty() && (message.protocol != AvroCodecFactory.PROTOCOL))) {
                         message
@@ -93,15 +82,9 @@ abstract class AbstractAvroCodec(
     abstract fun decodeRawMessage(rawMessage: RawMessage, sessionAlias: String): ParsedMessage
 
     override fun encode(messageGroup: ProtoMessageGroup): ProtoMessageGroup {
-        val messages = messageGroup.messagesList
-
-        if (messages.isEmpty().or(messages.stream().allMatch(ProtoAnyMessage::hasRawMessage))) {
-            return messageGroup
-        }
-
         val msgBuilder = ProtoMessageGroup.newBuilder()
         Unpooled.buffer()
-        messages.forEach { message ->
+        messageGroup.messagesList.forEach { message ->
             if (!message.hasMessage().or(message.message.metadata.run {
                     protocol.isNotEmpty().and(protocol != AvroCodecFactory.PROTOCOL)
                 })) {
@@ -126,14 +109,8 @@ abstract class AbstractAvroCodec(
     }
 
     override fun encode(messageGroup: MessageGroup): MessageGroup {
-        val messages = messageGroup.messages
-
-        if (messages.isEmpty().or(messages.stream().allMatch { it is RawMessage })) {
-            return messageGroup
-        }
-
         return MessageGroup.builder().apply {
-            messages.forEach { message ->
+            messageGroup.messages.forEach { message ->
                 addMessage(
                     if (message !is ParsedMessage || message.protocol.isNotEmpty() && message.protocol != AvroCodecFactory.PROTOCOL) {
                         message
