@@ -189,11 +189,11 @@ class TestAvroCodec {
         return encodeMessages[0].rawMessage.body
     }
 
-    private fun transportEncode(messageGroup: MessageGroup): ByteArray? {
+    private fun transportEncode(messageGroup: MessageGroup): ByteArray {
         val encodeMessages = codec.encode(messageGroup).messages
         assertEquals(1, encodeMessages.size)
         val rawMessage = encodeMessages[0] as RawMessage
-        return rawMessage.body.array()
+        return rawMessage.body.toByteArray()
     }
 
     @Disabled

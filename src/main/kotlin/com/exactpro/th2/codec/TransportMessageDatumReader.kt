@@ -116,8 +116,8 @@ class TransportMessageDatumReader(schema: Schema, private val enableIdPrefixEnum
     }
 
     private fun Any.convertToValue(): Any = when (this) {
-        is ByteBuffer -> this.array()
-        is GenericFixed -> this.bytes()
+        is ByteBuffer -> ByteArray(remaining()).also { get(it) }
+        is GenericFixed -> bytes()
         else -> this
     }
 
