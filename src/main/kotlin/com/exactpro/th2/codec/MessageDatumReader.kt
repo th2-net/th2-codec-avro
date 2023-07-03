@@ -35,14 +35,16 @@ import java.nio.ByteBuffer
 import javax.xml.bind.DatatypeConverter
 import mu.KotlinLogging
 
-class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
-    GenericDatumReader<Message.Builder>(schema, schema, getData()) {
+class MessageDatumReader(
+    schema: Schema,
+    private val enableIdPrefixEnumFields: Boolean? = false,
+) : GenericDatumReader<Message.Builder>(schema, schema, getData()) {
     @Throws(IOException::class)
     override fun readWithoutConversion(old: Any?, expected: Schema, decoder: ResolvingDecoder): Any? {
         return if (expected.type == Schema.Type.UNION) {
             val readIndex = decoder.readIndex()
             val schema = expected.types[readIndex]
-            UnionData(read(old, schema, decoder), if(enableIdPrefixEnumFields) "$UNION_ID_PREFIX$readIndex" else schema.name)
+            UnionData(read(old, schema, decoder), enableIdPrefixEnumFields?.let { if(it) "$UNION_ID_PREFIX$readIndex" else schema.name })
         } else {
             super.readWithoutConversion(old, expected, decoder)
         }
@@ -75,8 +77,12 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
         }
     }
 
-    private fun resolveUnionFieldName(fieldName: String, description: String): String {
-        return "$description$UNION_FIELD_NAME_TYPE_DELIMITER$fieldName"
+    private fun resolveUnionFieldName(fieldName: String, description: String?): String {
+        return if (description == null) {
+            fieldName
+        } else {
+            "$description$UNION_FIELD_NAME_TYPE_DELIMITER$fieldName"
+        }
     }
 
     private fun createRecord(): Message.Builder {
@@ -130,7 +136,7 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
     }
     data class UnionData(
         val value: Any?,
-        val description: String
+        val description: String?
     )
     companion object {
         private val LOGGER = KotlinLogging.logger {}

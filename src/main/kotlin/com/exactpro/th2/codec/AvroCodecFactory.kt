@@ -26,8 +26,8 @@ class AvroCodecFactory : IPipelineCodecFactory {
     private lateinit var codecContext: IPipelineCodecContext
 
 
-    @Deprecated("Please migrate to the protocols property")
-    override val protocol: String = PROTOCOL
+    override val protocols: Set<String>
+        get() = PROTOCOLS
 
     override val settingsClass: Class<out IPipelineCodecSettings> =
         AvroCodecSettings::class.java
@@ -61,5 +61,6 @@ class AvroCodecFactory : IPipelineCodecFactory {
 
     companion object {
         const val PROTOCOL = "AVRO"
+        private val PROTOCOLS = setOf(PROTOCOL)
     }
 }

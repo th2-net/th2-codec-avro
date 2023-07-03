@@ -24,15 +24,16 @@ import org.apache.avro.Schema
 
 class SchemaIdDatumResolver(
     schemaIdToSchema: Map<Int, Schema>,
-    enableIdPrefixEnumFields: Boolean = false
+    enableIdPrefixEnumFields: Boolean = false,
+    enablePrefixEnumFieldsDecode: Boolean? = true,
 ) : IDatumResolver<Int> {
 
     private val datumReaders = schemaIdToSchema.mapValues {
-        MessageDatumReader(it.value, enableIdPrefixEnumFields)
+        MessageDatumReader(it.value, enablePrefixEnumFieldsDecode)
     }
 
     private val transportDatumReaders = schemaIdToSchema.mapValues {
-        TransportMessageDatumReader(it.value, enableIdPrefixEnumFields)
+        TransportMessageDatumReader(it.value, enablePrefixEnumFieldsDecode)
     }
 
     private val datumWriters = schemaIdToSchema.mapValues {
