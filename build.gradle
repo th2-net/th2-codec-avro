@@ -5,7 +5,8 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.6.21'
     // for run ./gradlew jmh
     id 'me.champeau.jmh' version '0.6.8'
-    id "org.owasp.dependencycheck" version "8.1.2"
+    id "org.owasp.dependencycheck" version "8.3.1"
+    id "com.gorylenko.gradle-git-properties" version "2.4.1"
 }
 
 apply plugin: 'application'
@@ -50,11 +51,11 @@ jar {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:4.2.0')
+    api platform('com.exactpro.th2:bom:4.4.0')
 
-    implementation "com.exactpro.th2:common:5.3.0-json-raw-body-5242142633-7ac1672-SNAPSHOT" //FIXME: migrate to release
+    implementation "com.exactpro.th2:common:5.3.0-separate-executor-+" //FIXME: migrate to release
     implementation "com.exactpro.th2:common-utils:2.1.1-transport-protocol-5840755567-510df64-SNAPSHOT"
-    implementation "com.exactpro.th2:codec:5.3.0-new-proto-5268272910-5cfd2a7-SNAPSHOT" //FIXME: migrate to release
+    implementation "com.exactpro.th2:codec:5.3.0-new-proto-+" //FIXME: migrate to release
     implementation 'javax.xml.bind:jaxb-api:2.3.1'
 
     implementation 'io.netty:netty-buffer'
@@ -67,7 +68,7 @@ dependencies {
 
     compileOnly 'com.google.auto.service:auto-service:1.0.1'
 
-    testImplementation "org.junit.jupiter:junit-jupiter:5.9.0"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.9.3"
     testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5:1.6.21'
 
     kapt 'com.google.auto.service:auto-service:1.0.1'
