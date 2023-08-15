@@ -16,18 +16,25 @@
 
 package com.exactpro.th2.codec
 
-import com.exactpro.th2.codec.MessageDatumReader.Companion.getData
-import org.apache.avro.*
-import org.apache.avro.generic.GenericDatumWriter
+import org.apache.avro.Schema
+import org.apache.avro.AvroTypeException
+import org.apache.avro.UnresolvedUnionException
 import org.apache.avro.io.Encoder
-import org.apache.avro.path.*
+import org.apache.avro.path.TracingAvroTypeException
+import org.apache.avro.path.TracingNullPointException
+import org.apache.avro.path.TracingClassCastException
+import org.apache.avro.path.LocationStep
 import org.apache.avro.util.SchemaUtil
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.time.*
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.Instant
+import javax.xml.bind.DatatypeConverter
 
 class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
-    GenericDatumWriter<Map<String, Any?>>(schema, getData()) {
+    AbstractMessageWriter<Map<String, Any?>>(schema) {
     @Throws(IOException::class)
     override fun writeField(datum: Any?, f: Schema.Field, out: Encoder, state: Any?) {
         val value = resolveUnionValue(f, datum)
@@ -85,34 +92,63 @@ class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnum
                     }
                 }
 
-                Schema.Type.FIXED -> writeFixed(schema, datum, out)
+                Schema.Type.FIXED -> {
+                    val bytes = when (datum) {
+                        is ByteArray -> datum
+                        is String -> DatatypeConverter.parseHexBinary(datum)
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
+                    }
+                    writeFixed(schema, bytes, out)
+                }
                 Schema.Type.STRING -> writeString(schema, datum as String, out)
                 Schema.Type.BYTES -> writeBytes(datum, out)
                 Schema.Type.INT -> {
-                    when (datum) {
-                        is Int -> out.writeInt(datum)
-                        else -> throw AvroTypeException(
-                            String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name)
-                        )
+                    val int = when (datum) {
+                        is Int -> datum
+                        is String -> datum.toInt()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
                     }
+                    out.writeInt(int)
                 }
 
                 Schema.Type.LONG -> {
-                    when (datum) {
-                        is Long -> out.writeLong(datum)
-                        else -> throw AvroTypeException(
-                            String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name)
-                        )
+                    val long = when (datum) {
+                        is Long -> datum
+                        is String -> datum.toLong()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
                     }
+                    out.writeLong(long)
                 }
 
-                Schema.Type.FLOAT -> out.writeFloat(datum as Float)
-                Schema.Type.DOUBLE -> out.writeDouble(datum as Double)
-                Schema.Type.BOOLEAN -> out.writeBoolean(datum as Boolean)
+                Schema.Type.FLOAT -> {
+                    val float = when (datum) {
+                        is Float -> datum
+                        is String -> datum.toFloat()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
+                    }
+                    out.writeFloat(float)
+                }
+
+                Schema.Type.DOUBLE -> {
+                    val double = when (datum) {
+                        is Double -> datum
+                        is String -> datum.toDouble()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
+                    }
+                    out.writeDouble(double)
+                }
+
+                Schema.Type.BOOLEAN -> {
+                    val boolean = when (datum) {
+                        is Boolean -> datum
+                        is String -> datum.toBoolean()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
+                    }
+                    out.writeBoolean(boolean)
+                }
+
                 Schema.Type.NULL -> out.writeNull()
-                else -> throw AvroTypeException(
-                    "Value ${SchemaUtil.describe(datum)} is not a ${SchemaUtil.describe(schema)}"
-                )
+                else -> throw AvroTypeException("Value ${SchemaUtil.describe(datum)} is not a ${SchemaUtil.describe(schema)}")
             }
         } catch (e: Exception) {
             when (e) {
@@ -145,9 +181,8 @@ class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnum
                 datum.get(bytes)
                 out.writeBytes(bytes)
             }
-            is ByteArray -> {
-                out.writeBytes(datum)
-            }
+            is ByteArray -> out.writeBytes(datum)
+            is String -> out.writeBytes(DatatypeConverter.parseHexBinary(datum))
             else -> throw AvroTypeException("Class ${datum::class.java} is not supported}")
         }
     }
@@ -155,7 +190,22 @@ class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnum
     @Throws(IOException::class)
     override fun write(schema: Schema, datum: Any, out: Encoder) {
         val value = schema.logicalType?.let {
-            convert(schema, it, data.getConversionByClass(datum.javaClass, it), datum)
+            val convertedValue = if (datum is String) {
+                when (it.name) {
+                    AbstractMessageWriter.Companion.Type.DECIMAL.type -> datum.toBigDecimal()
+                    AbstractMessageWriter.Companion.Type.DATE.type -> LocalDate.parse(datum)
+                    AbstractMessageWriter.Companion.Type.TIME_MILLIS.type -> LocalTime.parse(datum, localTimeWithMillisConverter)
+                    AbstractMessageWriter.Companion.Type.TIME_MICROS.type -> LocalTime.parse(datum, localTimeWithMicrosConverter)
+                    AbstractMessageWriter.Companion.Type.TIMESTAMP_MILLIS.type,
+                    AbstractMessageWriter.Companion.Type.TIMESTAMP_MICROS.type -> Instant.parse(datum)
+                    AbstractMessageWriter.Companion.Type.LOCAL_TIMESTAMP_MILLIS.type -> LocalDateTime.parse(datum, localDateTimeWithMillisConverter)
+                    AbstractMessageWriter.Companion.Type.LOCAL_TIMESTAMP_MICROS.type -> LocalDateTime.parse(datum.toString(), localDateTimeWithMicrosConverter)
+                    else -> throw AvroTypeException("Logical type ${it.name} is not supported}")
+                }
+            } else {
+                datum
+            }
+            convert(schema, it, data.getConversionByClass(convertedValue.javaClass, it), convertedValue)
         } ?: datum
 
         writeWithoutConversion(schema, value, out)
@@ -181,11 +231,5 @@ class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnum
             )
         ) { "Union prefix: {avro type}$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName" }
         return checkNotNull(union.getIndexNamed(schemaName)) { "Schema with name: $schemaName not found in union parent schema: ${union.name}" }
-    }
-
-    companion object {
-        const val FORMAT_TYPE_ERROR = "Unsupported type %s for %s"
-        const val UNION_FIELD_NAME_TYPE_DELIMITER = '-'
-        const val UNION_ID_PREFIX = "Id"
     }
 }

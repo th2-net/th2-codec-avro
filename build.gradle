@@ -53,6 +53,7 @@ dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
 
     implementation "com.exactpro.th2:common:5.3.0-json-raw-body-5242142633-7ac1672-SNAPSHOT" //FIXME: migrate to release
+    implementation "com.exactpro.th2:common-utils:2.1.1-transport-protocol-5840755567-510df64-SNAPSHOT"
     implementation "com.exactpro.th2:codec:5.3.0-new-proto-5268272910-5cfd2a7-SNAPSHOT" //FIXME: migrate to release
     implementation 'javax.xml.bind:jaxb-api:2.3.1'
 

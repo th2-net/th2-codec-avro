@@ -16,8 +16,8 @@
 
 package com.exactpro.th2.codec
 
-import com.exactpro.th2.codec.MessageDatumWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
-import com.exactpro.th2.codec.MessageDatumWriter.Companion.UNION_ID_PREFIX
+import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
+import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_ID_PREFIX
 import org.apache.avro.*
 import org.apache.avro.data.TimeConversions.*
 import org.apache.avro.generic.*
@@ -25,7 +25,6 @@ import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.util.*
 import javax.xml.bind.DatatypeConverter
 import mu.KotlinLogging
 

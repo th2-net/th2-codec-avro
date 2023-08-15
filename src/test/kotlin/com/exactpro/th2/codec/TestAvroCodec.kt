@@ -26,6 +26,7 @@ import com.exactpro.th2.common.grpc.ConnectionID as ProtoConnectionID
 import com.exactpro.th2.common.grpc.RawMessageMetadata as ProtoRawMessageMetadata
 import com.exactpro.th2.common.schema.dictionary.DictionaryType
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.*
+import com.exactpro.th2.common.utils.message.toTransport
 import com.google.protobuf.ByteString
 import io.netty.buffer.Unpooled
 import org.apache.avro.Schema.Parser
@@ -33,7 +34,6 @@ import org.apache.avro.generic.GenericDatumWriter
 import org.apache.avro.io.BinaryEncoder
 import org.apache.avro.io.EncoderFactory
 import org.apache.avro.util.RandomData
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -42,6 +42,7 @@ import javax.xml.bind.DatatypeConverter
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Disabled
 import java.time.Instant
+import kotlin.test.assertContentEquals
 
 class TestAvroCodec {
     private val pipelineCodecContext = CodecContext()
@@ -127,28 +128,32 @@ class TestAvroCodec {
 
     @Test
     fun `test decode encode union with logical types`() {
-        val rawBytes =
-            DatatypeConverter.parseHexBinary(
-                "000000000402F586B9CF0E"
-            )
+        val rawBytes = DatatypeConverter.parseHexBinary("000000000402F586B9CF0E")
         decodeToEncode(rawBytes, 1)
     }
 
     private fun decodeToEncode(rawBytes: ByteArray, expected: Int, sessionAlias: String? = null) {
+        // proto decode
         val body = ByteString.copyFrom(rawBytes)
         val decodeGroup = decode(body, sessionAlias)
-        val actualCountFields = decodeGroup.messagesList[0].message.fieldsMap.size
+        assertEquals(expected, decodeGroup.messagesList[0].message.fieldsMap.size)
 
+        // proto encode
+        val protoEncoded = encode(decodeGroup)?.toByteArray()
+        assertContentEquals(protoEncoded, rawBytes)
+
+        // transport decode
         val transportDecodeGroup = transportDecode(rawBytes, sessionAlias)
+        assertEquals(expected, (transportDecodeGroup.messages[0].body as Map<String, Any>).size)
+
+        // transport encode
         val transportEncoded = transportEncode(transportDecodeGroup)
+        assertContentEquals(transportEncoded, rawBytes)
 
-        assertEquals(expected, actualCountFields)
-        val encodeBody = encode(decodeGroup)
-
-        Assertions.assertArrayEquals(rawBytes, transportEncoded)
-        Assertions.assertArrayEquals(rawBytes, encodeBody?.toByteArray())
-
-        assertEquals(body, encodeBody)
+        // transport encode (string values - converted from proto)
+        val convertedMsg = decodeGroup.messagesList[0].message.toTransport()
+        val transportEncodedFromStrings = transportEncode(MessageGroup(listOf(convertedMsg)))
+        assertContentEquals(transportEncodedFromStrings, rawBytes)
     }
 
     private fun decode(body: ByteString?, sessionAlias: String?): ProtoMessageGroup {

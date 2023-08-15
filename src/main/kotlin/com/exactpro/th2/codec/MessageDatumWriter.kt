@@ -13,28 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.codec
 
-import com.exactpro.th2.codec.MessageDatumReader.Companion.getData
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.getField
 import com.exactpro.th2.common.value.getList
 import com.exactpro.th2.common.value.getMessage
-import org.apache.avro.*
-import org.apache.avro.generic.GenericDatumWriter
+import org.apache.avro.UnresolvedUnionException
+import org.apache.avro.AvroTypeException
+import org.apache.avro.Schema
+import org.apache.avro.Conversion
 import org.apache.avro.io.Encoder
-import org.apache.avro.path.*
+import org.apache.avro.path.TracingAvroTypeException
+import org.apache.avro.path.TracingClassCastException
+import org.apache.avro.path.TracingNullPointException
+import org.apache.avro.path.LocationStep
 import org.apache.avro.util.SchemaUtil
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.time.*
-import java.time.format.DateTimeFormatter
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.LocalDateTime
+import java.time.Instant
 import javax.xml.bind.DatatypeConverter
-
+import com.exactpro.th2.codec.AbstractMessageWriter.Companion.Type
 
 class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
-    GenericDatumWriter<Message>(schema, getData()) {
+    AbstractMessageWriter<Message>(schema) {
     @Throws(IOException::class)
     override fun writeField(datum: Any?, f: Schema.Field, out: Encoder, state: Any?) {
         val value = resolveUnionValue(f, datum)
@@ -97,9 +104,7 @@ class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: B
                     when (datum) {
                         is Value -> out.writeInt(datum.simpleValue.toInt())
                         is Int -> out.writeInt(datum)
-                        else -> throw AvroTypeException(
-                            String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name)
-                        )
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
                     }
                 }
 
@@ -107,9 +112,7 @@ class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: B
                     when (datum) {
                         is Value -> out.writeLong(datum.simpleValue.toLong())
                         is Long -> out.writeLong(datum)
-                        else -> throw AvroTypeException(
-                            String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name)
-                        )
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
                     }
 
                 }
@@ -176,9 +179,7 @@ class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: B
                 Type.TIMESTAMP_MICROS.type -> Instant.parse(simpleValue.toString())
                 Type.LOCAL_TIMESTAMP_MILLIS.type -> LocalDateTime.parse(simpleValue.toString(), localDateTimeWithMillisConverter)
                 Type.LOCAL_TIMESTAMP_MICROS.type -> LocalDateTime.parse(simpleValue.toString(), localDateTimeWithMicrosConverter)
-                else ->  throw AvroTypeException(
-                    "Logical type ${logicalType.name} is not supported}"
-                )
+                else ->  throw AvroTypeException("Logical type ${logicalType.name} is not supported}")
             }
             val conversion: Conversion<*> = data.getConversionByClass(convertedValue.javaClass, logicalType)
             writeWithoutConversion(schema, convert(schema, logicalType, conversion, convertedValue), out)
@@ -206,24 +207,5 @@ class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: B
             )
         ) { "Union prefix: {avro type}$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName" }
         return checkNotNull(union.getIndexNamed(schemaName)) { "Schema with name: $schemaName not found in union parent schema: ${union.name}" }
-    }
-    companion object {
-        const val FORMAT_TYPE_ERROR = "Unsupported type %s for %s"
-        const val UNION_FIELD_NAME_TYPE_DELIMITER = '-'
-        const val UNION_ID_PREFIX = "Id"
-        val localTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
-        val localTimeWithMicrosConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC)
-        val localDateTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
-        val localDateTimeWithMicrosConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC)
-        enum class Type(val type: String) {
-            DECIMAL("decimal"),
-            DATE("date"),
-            TIME_MILLIS("time-millis"),
-            TIME_MICROS("time-micros"),
-            TIMESTAMP_MILLIS("timestamp-millis"),
-            TIMESTAMP_MICROS("timestamp-micros"),
-            LOCAL_TIMESTAMP_MILLIS("local-timestamp-millis"),
-            LOCAL_TIMESTAMP_MICROS("local-timestamp-micros")
-        }
     }
 }

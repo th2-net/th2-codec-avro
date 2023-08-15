@@ -13,16 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.codec
 
-import com.exactpro.th2.codec.MessageDatumWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
-import com.exactpro.th2.codec.MessageDatumWriter.Companion.UNION_ID_PREFIX
+import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
+import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_ID_PREFIX
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.value.toValue
 import com.google.protobuf.TextFormat.shortDebugString
-import org.apache.avro.*
+import org.apache.avro.Schema
+import org.apache.avro.LogicalType
+import org.apache.avro.Conversion
+import org.apache.avro.Conversions
 import org.apache.avro.data.TimeConversions.*
 import org.apache.avro.generic.*
 import org.apache.avro.io.Decoder
