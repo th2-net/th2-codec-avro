@@ -33,15 +33,10 @@ import org.apache.avro.path.LocationStep
 import org.apache.avro.util.SchemaUtil
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.LocalDateTime
-import java.time.Instant
 import javax.xml.bind.DatatypeConverter
-import com.exactpro.th2.codec.AbstractMessageWriter.Companion.Type
 
-class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
-    AbstractMessageWriter<Message>(schema) {
+class MessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = false) :
+    AbstractMessageWriter<Message>(schema, enableIdPrefixEnumFields) {
     @Throws(IOException::class)
     override fun writeField(datum: Any?, f: Schema.Field, out: Encoder, state: Any?) {
         val value = resolveUnionValue(f, datum)
@@ -167,45 +162,13 @@ class MessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: B
 
     @Throws(IOException::class)
     override fun write(schema: Schema, datum: Any, out: Encoder) {
-        val logicalType = schema.logicalType
-        if (logicalType != null) {
+        val value = schema.logicalType?.let {
             val simpleValue = (datum as Value).simpleValue
-            val convertedValue = when (logicalType.name) {
-                Type.DECIMAL.type ->  simpleValue.toBigDecimal()
-                Type.DATE.type -> LocalDate.parse(simpleValue.toString())
-                Type.TIME_MILLIS.type -> LocalTime.parse(simpleValue.toString(), localTimeWithMillisConverter)
-                Type.TIME_MICROS.type -> LocalTime.parse(simpleValue.toString(), localTimeWithMicrosConverter)
-                Type.TIMESTAMP_MILLIS.type,
-                Type.TIMESTAMP_MICROS.type -> Instant.parse(simpleValue.toString())
-                Type.LOCAL_TIMESTAMP_MILLIS.type -> LocalDateTime.parse(simpleValue.toString(), localDateTimeWithMillisConverter)
-                Type.LOCAL_TIMESTAMP_MICROS.type -> LocalDateTime.parse(simpleValue.toString(), localDateTimeWithMicrosConverter)
-                else ->  throw AvroTypeException("Logical type ${logicalType.name} is not supported}")
-            }
-            val conversion: Conversion<*> = data.getConversionByClass(convertedValue.javaClass, logicalType)
-            writeWithoutConversion(schema, convert(schema, logicalType, conversion, convertedValue), out)
-        } else {
-            writeWithoutConversion(schema, datum, out)
-        }
-    }
-    private fun resolveUnion(union: Schema, fieldName: String?, enumValue: Value?): Int {
-        if (enableIdPrefixEnumFields.and(enumValue != null)) {
-            try {
-                return checkNotNull(
-                    fieldName?.substringBefore(UNION_FIELD_NAME_TYPE_DELIMITER)?.substringAfter(UNION_ID_PREFIX)
-                        ?.toInt()
-                ) { "Schema id not found in field name: $fieldName" }
-            } catch (e: NumberFormatException) {
-                throw AvroTypeException(
-                    "Union prefix: $UNION_ID_PREFIX'{schema id}'$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName",
-                    e
-                )
-            }
-        }
-        val schemaName = checkNotNull(
-            if (enumValue == null) Schema.Type.NULL.getName() else fieldName?.substringBefore(
-                UNION_FIELD_NAME_TYPE_DELIMITER
-            )
-        ) { "Union prefix: {avro type}$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName" }
-        return checkNotNull(union.getIndexNamed(schemaName)) { "Schema with name: $schemaName not found in union parent schema: ${union.name}" }
+            val convertedValue = convertFieldValue(simpleValue, it.name)
+            val conversion: Conversion<*> = data.getConversionByClass(convertedValue.javaClass, it)
+            convert(schema, it, conversion, convertedValue)
+        } ?: datum
+
+        writeWithoutConversion(schema, value, out)
     }
 }

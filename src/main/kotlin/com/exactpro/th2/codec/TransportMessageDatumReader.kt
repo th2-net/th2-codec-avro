@@ -18,9 +18,11 @@ package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
 import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_ID_PREFIX
-import org.apache.avro.*
-import org.apache.avro.data.TimeConversions.*
-import org.apache.avro.generic.*
+import org.apache.avro.Schema
+import org.apache.avro.LogicalType
+import org.apache.avro.Conversion
+import org.apache.avro.generic.GenericDatumReader
+import org.apache.avro.generic.GenericFixed
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
 import java.io.IOException
@@ -126,18 +128,6 @@ class TransportMessageDatumReader(schema: Schema, private val enableIdPrefixEnum
     )
 
     companion object {
-        private val LOGGER = KotlinLogging.logger {  }
-        fun getData(): GenericData? {
-            return GenericData.get().apply {
-                addLogicalTypeConversion(Conversions.DecimalConversion())
-                addLogicalTypeConversion(DateConversion())
-                addLogicalTypeConversion(TimeMillisConversion())
-                addLogicalTypeConversion(TimeMicrosConversion())
-                addLogicalTypeConversion(TimestampMillisConversion())
-                addLogicalTypeConversion(TimestampMicrosConversion())
-                addLogicalTypeConversion(LocalTimestampMillisConversion())
-                addLogicalTypeConversion(LocalTimestampMicrosConversion())
-            }
-        }
+        private val LOGGER = KotlinLogging.logger {}
     }
 }

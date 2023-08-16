@@ -26,14 +26,12 @@ import com.google.protobuf.TextFormat.shortDebugString
 import org.apache.avro.Schema
 import org.apache.avro.LogicalType
 import org.apache.avro.Conversion
-import org.apache.avro.Conversions
-import org.apache.avro.data.TimeConversions.*
-import org.apache.avro.generic.*
+import org.apache.avro.generic.GenericDatumReader
+import org.apache.avro.generic.GenericFixed
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.util.*
 import javax.xml.bind.DatatypeConverter
 import mu.KotlinLogging
 
@@ -135,18 +133,6 @@ class MessageDatumReader(schema: Schema, private val enableIdPrefixEnumFields: B
         val description: String
     )
     companion object {
-        private val LOGGER = KotlinLogging.logger {  }
-        fun getData(): GenericData? {
-            return GenericData.get().apply {
-                addLogicalTypeConversion(Conversions.DecimalConversion())
-                addLogicalTypeConversion(DateConversion())
-                addLogicalTypeConversion(TimeMillisConversion())
-                addLogicalTypeConversion(TimeMicrosConversion())
-                addLogicalTypeConversion(TimestampMillisConversion())
-                addLogicalTypeConversion(TimestampMicrosConversion())
-                addLogicalTypeConversion(LocalTimestampMillisConversion())
-                addLogicalTypeConversion(LocalTimestampMicrosConversion())
-            }
-        }
+        private val LOGGER = KotlinLogging.logger {}
     }
 }

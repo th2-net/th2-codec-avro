@@ -27,14 +27,10 @@ import org.apache.avro.path.LocationStep
 import org.apache.avro.util.SchemaUtil
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.Instant
 import javax.xml.bind.DatatypeConverter
 
-class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false) :
-    AbstractMessageWriter<Map<String, Any?>>(schema) {
+class TransportMessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = false) :
+    AbstractMessageWriter<Map<String, Any?>>(schema, enableIdPrefixEnumFields) {
     @Throws(IOException::class)
     override fun writeField(datum: Any?, f: Schema.Field, out: Encoder, state: Any?) {
         val value = resolveUnionValue(f, datum)
@@ -191,17 +187,7 @@ class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnum
     override fun write(schema: Schema, datum: Any, out: Encoder) {
         val value = schema.logicalType?.let {
             val convertedValue = if (datum is String) {
-                when (it.name) {
-                    AbstractMessageWriter.Companion.Type.DECIMAL.type -> datum.toBigDecimal()
-                    AbstractMessageWriter.Companion.Type.DATE.type -> LocalDate.parse(datum)
-                    AbstractMessageWriter.Companion.Type.TIME_MILLIS.type -> LocalTime.parse(datum, localTimeWithMillisConverter)
-                    AbstractMessageWriter.Companion.Type.TIME_MICROS.type -> LocalTime.parse(datum, localTimeWithMicrosConverter)
-                    AbstractMessageWriter.Companion.Type.TIMESTAMP_MILLIS.type,
-                    AbstractMessageWriter.Companion.Type.TIMESTAMP_MICROS.type -> Instant.parse(datum)
-                    AbstractMessageWriter.Companion.Type.LOCAL_TIMESTAMP_MILLIS.type -> LocalDateTime.parse(datum, localDateTimeWithMillisConverter)
-                    AbstractMessageWriter.Companion.Type.LOCAL_TIMESTAMP_MICROS.type -> LocalDateTime.parse(datum.toString(), localDateTimeWithMicrosConverter)
-                    else -> throw AvroTypeException("Logical type ${it.name} is not supported}")
-                }
+                convertFieldValue(datum, it.name)
             } else {
                 datum
             }
@@ -209,27 +195,5 @@ class TransportMessageDatumWriter(schema: Schema, private val enableIdPrefixEnum
         } ?: datum
 
         writeWithoutConversion(schema, value, out)
-    }
-
-    private fun resolveUnion(union: Schema, fieldName: String?, enumValue: Any?): Int {
-        if (enableIdPrefixEnumFields.and(enumValue != null)) {
-            try {
-                return checkNotNull(
-                    fieldName?.substringBefore(UNION_FIELD_NAME_TYPE_DELIMITER)?.substringAfter(UNION_ID_PREFIX)
-                        ?.toInt()
-                ) { "Schema id not found in field name: $fieldName" }
-            } catch (e: NumberFormatException) {
-                throw AvroTypeException(
-                    "Union prefix: $UNION_ID_PREFIX'{schema id}'$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName",
-                    e
-                )
-            }
-        }
-        val schemaName = checkNotNull(
-            if (enumValue == null) Schema.Type.NULL.getName() else fieldName?.substringBefore(
-                UNION_FIELD_NAME_TYPE_DELIMITER
-            )
-        ) { "Union prefix: {avro type}$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName" }
-        return checkNotNull(union.getIndexNamed(schemaName)) { "Schema with name: $schemaName not found in union parent schema: ${union.name}" }
     }
 }

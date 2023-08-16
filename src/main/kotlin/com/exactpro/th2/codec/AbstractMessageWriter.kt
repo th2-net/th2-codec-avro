@@ -16,46 +16,61 @@
 
 package com.exactpro.th2.codec
 
-import org.apache.avro.Conversions
+import org.apache.avro.AvroTypeException
 import org.apache.avro.Schema
-import org.apache.avro.data.TimeConversions
-import org.apache.avro.generic.GenericData
 import org.apache.avro.generic.GenericDatumWriter
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-abstract class AbstractMessageWriter<T>(schema: Schema, private val enableIdPrefixEnumFields: Boolean = false)
+abstract class AbstractMessageWriter<T>(schema: Schema, private val enableIdPrefixEnumFields: Boolean)
     : GenericDatumWriter<T>(schema, getData()) {
 
-    companion object {
-        fun getData(): GenericData? {
-            return GenericData.get().apply {
-                addLogicalTypeConversion(Conversions.DecimalConversion())
-                addLogicalTypeConversion(TimeConversions.DateConversion())
-                addLogicalTypeConversion(TimeConversions.TimeMillisConversion())
-                addLogicalTypeConversion(TimeConversions.TimeMicrosConversion())
-                addLogicalTypeConversion(TimeConversions.TimestampMillisConversion())
-                addLogicalTypeConversion(TimeConversions.TimestampMicrosConversion())
-                addLogicalTypeConversion(TimeConversions.LocalTimestampMillisConversion())
-                addLogicalTypeConversion(TimeConversions.LocalTimestampMicrosConversion())
+    protected fun <T> resolveUnion(union: Schema, fieldName: String?, enumValue: T?): Int {
+        if (enableIdPrefixEnumFields.and(enumValue != null)) {
+            try {
+                return checkNotNull(
+                    fieldName?.substringBefore(UNION_FIELD_NAME_TYPE_DELIMITER)?.substringAfter(UNION_ID_PREFIX)
+                        ?.toInt()
+                ) { "Schema id not found in field name: $fieldName" }
+            } catch (e: NumberFormatException) {
+                throw AvroTypeException(
+                    "Union prefix: $UNION_ID_PREFIX'{schema id}'$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName",
+                    e
+                )
             }
         }
+        val schemaName = checkNotNull(
+            if (enumValue == null) Schema.Type.NULL.getName() else fieldName?.substringBefore(
+                UNION_FIELD_NAME_TYPE_DELIMITER
+            )
+        ) { "Union prefix: {avro type}$UNION_FIELD_NAME_TYPE_DELIMITER not found in field name: $fieldName" }
+        return checkNotNull(union.getIndexNamed(schemaName)) { "Schema with name: $schemaName not found in union parent schema: ${union.name}" }
+    }
 
-        enum class Type(val type: String) {
-            DECIMAL("decimal"),
-            DATE("date"),
-            TIME_MILLIS("time-millis"),
-            TIME_MICROS("time-micros"),
-            TIMESTAMP_MILLIS("timestamp-millis"),
-            TIMESTAMP_MICROS("timestamp-micros"),
-            LOCAL_TIMESTAMP_MILLIS("local-timestamp-millis"),
-            LOCAL_TIMESTAMP_MICROS("local-timestamp-micros")
+    protected fun convertFieldValue(value: String, typeName: String): Any {
+        val converter = typeNameToConverter[typeName] ?: throw AvroTypeException("Logical type $typeName is not supported}")
+        return converter(value)
+    }
+
+    companion object {
+        private val typeNameToConverter = buildMap<String, (String) -> Any> {
+            put("decimal") { it.toBigDecimal() }
+            put("date") { LocalDate.parse(it) }
+            put("time-millis") { java.time.LocalTime.parse(it, localTimeWithMillisConverter) }
+            put("time-micros") { java.time.LocalTime.parse(it, localTimeWithMicrosConverter) }
+            put("timestamp-millis") { Instant.parse(it) }
+            put("timestamp-micros") { Instant.parse(it) }
+            put("local-timestamp-millis") { LocalDateTime.parse(it, localDateTimeWithMillisConverter) }
+            put("local-timestamp-micros") { LocalDateTime.parse(it, localDateTimeWithMicrosConverter) }
         }
 
-        val localTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
-        val localTimeWithMicrosConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC)
-        val localDateTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
-        val localDateTimeWithMicrosConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC)
+        private val localTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
+        private val localTimeWithMicrosConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC)
+        private val localDateTimeWithMillisConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
+        private val localDateTimeWithMicrosConverter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS").withZone(ZoneOffset.UTC)
 
         const val FORMAT_TYPE_ERROR = "Unsupported type %s for %s"
         const val UNION_FIELD_NAME_TYPE_DELIMITER = '-'
