@@ -18,6 +18,7 @@ package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.api.DictionaryAlias
 import com.exactpro.th2.codec.api.IPipelineCodecContext
+import com.exactpro.th2.codec.api.impl.ReportingContext
 import com.exactpro.th2.common.grpc.MessageGroup as ProtoMessageGroup
 import com.exactpro.th2.common.grpc.RawMessage as ProtoRawMessage
 import com.exactpro.th2.common.grpc.AnyMessage as ProtoAnyMessage
@@ -29,6 +30,7 @@ import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.*
 import com.exactpro.th2.common.utils.message.toTransport
 import com.google.protobuf.ByteString
 import io.netty.buffer.Unpooled
+import com.google.protobuf.UnsafeByteOperations
 import org.apache.avro.Schema.Parser
 import org.apache.avro.generic.GenericDatumWriter
 import org.apache.avro.io.BinaryEncoder
@@ -42,7 +44,9 @@ import javax.xml.bind.DatatypeConverter
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Disabled
 import java.time.Instant
+import kotlin.test.assertNotNull
 import kotlin.test.assertContentEquals
+import kotlin.test.assertTrue
 
 class TestAvroCodec {
     private val pipelineCodecContext = CodecContext()
@@ -132,6 +136,33 @@ class TestAvroCodec {
         decodeToEncode(rawBytes, 1)
     }
 
+    @Test
+    fun `test decode encode logical types without type prefix for proto`() {
+        codec = codecFactory.create(AvroCodecSettings(schemaIdToSchemaAlias, enablePrefixEnumFieldsDecode = false))
+        val rawBytes =
+            DatatypeConverter.parseHexBinary(
+                "000000000402F586B9CF0E"
+            )
+        val messageGroup = decode(UnsafeByteOperations.unsafeWrap(rawBytes), sessionAlias = null)
+        assertEquals(1, messageGroup.messagesCount, "unexpected groups count")
+        val message = messageGroup.getMessages(0)
+        assertNotNull(message.message.fieldsMap["enumWithLogical"], "cannot find field without type prefix in ${message.message.fieldsMap}")
+    }
+
+    @Test
+    fun `test decode encode logical types without type prefix for transport`() {
+        codec = codecFactory.create(AvroCodecSettings(schemaIdToSchemaAlias, enablePrefixEnumFieldsDecode = false))
+        val rawBytes =
+            DatatypeConverter.parseHexBinary(
+                "000000000402F586B9CF0E"
+            )
+        val messageGroup = transportDecode(rawBytes, sessionAlias = null)
+        assertEquals(1, messageGroup.messages.size, "unexpected groups count")
+        val message = messageGroup.messages[0]
+        assertTrue(message is ParsedMessage, "got unexpected message type: ${message::class}")
+        assertNotNull(message.body["enumWithLogical"], "cannot find field without type prefix in ${message.body}")
+    }
+
     private fun decodeToEncode(rawBytes: ByteArray, expected: Int, sessionAlias: String? = null) {
         // proto decode
         val body = ByteString.copyFrom(rawBytes)
@@ -168,7 +199,7 @@ class TestAvroCodec {
             .setBody(body)
             .build()
         val group = ProtoMessageGroup.newBuilder().addMessages(ProtoAnyMessage.newBuilder().setRawMessage(rawMessage)).build()
-        val decodeGroup = codec.decode(group)
+        val decodeGroup = codec.decode(group, ReportingContext())
         val decodeMessages = decodeGroup.messagesList
         assertEquals(1, decodeMessages.size)
         return decodeGroup
@@ -182,20 +213,20 @@ class TestAvroCodec {
         )
 
         val group = MessageGroup(mutableListOf(rawMessage))
-        val decodeGroup = codec.decode(group)
+        val decodeGroup = codec.decode(group, ReportingContext())
         val decodeMessages = decodeGroup.messages
         assertEquals(1, decodeMessages.size)
         return decodeGroup
     }
 
     private fun encode(messageGroup: ProtoMessageGroup): ByteString? {
-        val encodeMessages = codec.encode(messageGroup).messagesList
+        val encodeMessages = codec.encode(messageGroup, ReportingContext()).messagesList
         assertEquals(1, encodeMessages.size)
         return encodeMessages[0].rawMessage.body
     }
 
     private fun transportEncode(messageGroup: MessageGroup): ByteArray {
-        val encodeMessages = codec.encode(messageGroup).messages
+        val encodeMessages = codec.encode(messageGroup, ReportingContext()).messages
         assertEquals(1, encodeMessages.size)
         val rawMessage = encodeMessages[0] as RawMessage
         return rawMessage.body.toByteArray()

@@ -31,7 +31,7 @@ import org.apache.avro.io.DecoderFactory
 
 class AliasAvroCodec(sessionAliasToSchema: Map<String, Schema>, settings: AvroCodecSettings) :
     AbstractAvroCodec(settings) {
-    private val aliasResolver = AliasDatumResolver(sessionAliasToSchema, enableIdPrefixEnumFields)
+    private val aliasResolver = AliasDatumResolver(sessionAliasToSchema, enableIdPrefixEnumFields, enablePrefixEnumFieldsDecode)
 
     override fun decodeRawMessage(rawMessage: ProtoRawMessage, sessionAlias: String): Message {
         check(sessionAlias.isNotBlank()) { "Session alias cannot be empty. Raw message: ${rawMessage.toJson()}" }

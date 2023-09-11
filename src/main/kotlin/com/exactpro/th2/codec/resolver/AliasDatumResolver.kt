@@ -27,7 +27,8 @@ import java.util.concurrent.locks.ReentrantLock
 
 class AliasDatumResolver(
     aliasToSchema: Map<String, Schema>,
-    enableIdPrefixEnumFields: Boolean = false
+    enableIdPrefixEnumFields: Boolean = false,
+    enablePrefixEnumFieldsDecode: Boolean? = true,
 ) : IDatumResolver<String> {
     private val datumCache: MutableMap<String, DatumPair> = mutableMapOf()
     private val wildcardAliases: List<Alias>
@@ -38,9 +39,9 @@ class AliasDatumResolver(
             Alias(
                 it.first,
                 DatumPair(
-                    MessageDatumReader(it.second, enableIdPrefixEnumFields),
+                    MessageDatumReader(it.second, enablePrefixEnumFieldsDecode),
                     MessageDatumWriter(it.second, enableIdPrefixEnumFields),
-                    TransportMessageDatumReader(it.second, enableIdPrefixEnumFields),
+                    TransportMessageDatumReader(it.second, enablePrefixEnumFieldsDecode),
                     TransportMessageDatumWriter(it.second, enableIdPrefixEnumFields)
                 )
             )

@@ -32,7 +32,7 @@ import com.exactpro.th2.common.grpc.Message as ProtoMessage
 import com.exactpro.th2.common.grpc.RawMessage as ProtoRawMessage
 
 class StandardAvroCodec(schemaIdToSchema: Map<Int, Schema>, settings: AvroCodecSettings) : AbstractAvroCodec(settings) {
-    private val schemaIdResolver = SchemaIdDatumResolver(schemaIdToSchema, enableIdPrefixEnumFields)
+    private val schemaIdResolver = SchemaIdDatumResolver(schemaIdToSchema, enableIdPrefixEnumFields, enablePrefixEnumFieldsDecode)
     override fun decodeRawMessage(rawMessage: ProtoRawMessage, sessionAlias: String): ProtoMessage = decodeRawMessage(
         rawMessage,
         rawMessage.body.toByteArray(),

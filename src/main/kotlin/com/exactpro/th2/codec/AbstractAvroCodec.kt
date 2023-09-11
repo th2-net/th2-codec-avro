@@ -17,6 +17,7 @@
 package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.api.IPipelineCodec
+import com.exactpro.th2.codec.api.IReportingContext
 import com.exactpro.th2.codec.util.toJson
 import com.exactpro.th2.codec.util.toMessageMetadataBuilder
 import com.exactpro.th2.codec.util.toRawMetadataBuilder
@@ -45,9 +46,14 @@ import com.exactpro.th2.common.grpc.RawMessage as ProtoRawMessage
 abstract class AbstractAvroCodec(
     settings: AvroCodecSettings,
 ) : IPipelineCodec {
-    protected val enableIdPrefixEnumFields = settings.enableIdPrefixEnumFields
+    protected val enableIdPrefixEnumFields: Boolean = settings.enableIdPrefixEnumFields
+    protected val enablePrefixEnumFieldsDecode: Boolean? = if (settings.enablePrefixEnumFieldsDecode) {
+        enableIdPrefixEnumFields
+    } else {
+        null
+    }
 
-    override fun decode(messageGroup: ProtoMessageGroup): ProtoMessageGroup {
+    override fun decode(messageGroup: ProtoMessageGroup, context: IReportingContext): ProtoMessageGroup {
         val msgBuilder = ProtoMessageGroup.newBuilder()
         messageGroup.messagesList.forEach { message ->
             if (!message.hasRawMessage().or(message.message.metadata.run {
@@ -64,7 +70,7 @@ abstract class AbstractAvroCodec(
         return msgBuilder.build()
     }
 
-    override fun decode(messageGroup: MessageGroup): MessageGroup {
+    override fun decode(messageGroup: MessageGroup, context: IReportingContext): MessageGroup {
         return MessageGroup.builder().apply {
             messageGroup.messages.forEach { message ->
                 addMessage(
@@ -81,7 +87,7 @@ abstract class AbstractAvroCodec(
     abstract fun decodeRawMessage(rawMessage: ProtoRawMessage, sessionAlias: String): ProtoMessage
     abstract fun decodeRawMessage(rawMessage: RawMessage, sessionAlias: String): ParsedMessage
 
-    override fun encode(messageGroup: ProtoMessageGroup): ProtoMessageGroup {
+    override fun encode(messageGroup: ProtoMessageGroup, context: IReportingContext): ProtoMessageGroup {
         val msgBuilder = ProtoMessageGroup.newBuilder()
         Unpooled.buffer()
         messageGroup.messagesList.forEach { message ->
@@ -108,7 +114,7 @@ abstract class AbstractAvroCodec(
         return msgBuilder.build()
     }
 
-    override fun encode(messageGroup: MessageGroup): MessageGroup {
+    override fun encode(messageGroup: MessageGroup, context: IReportingContext): MessageGroup {
         return MessageGroup.builder().apply {
             messageGroup.messages.forEach { message ->
                 addMessage(
