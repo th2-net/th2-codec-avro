@@ -24,7 +24,7 @@ dependencies {
 
     implementation "com.exactpro.th2:common:5.4.2-dev"
     implementation "com.exactpro.th2:common-utils:2.2.0-dev"
-    implementation "com.exactpro.th2:codec:5.3.0-new-proto-+" //FIXME: migrate to release
+    implementation "com.exactpro.th2:codec:5.4.0-dev"
     implementation 'javax.xml.bind:jaxb-api:2.3.1'
 
     implementation 'org.apache.avro:avro:1.11.1'

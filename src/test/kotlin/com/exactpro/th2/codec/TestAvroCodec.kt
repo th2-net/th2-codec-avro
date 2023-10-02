@@ -26,6 +26,7 @@ import com.exactpro.th2.common.grpc.MessageID as ProtoMessageID
 import com.exactpro.th2.common.grpc.ConnectionID as ProtoConnectionID
 import com.exactpro.th2.common.grpc.RawMessageMetadata as ProtoRawMessageMetadata
 import com.exactpro.th2.common.schema.dictionary.DictionaryType
+import com.exactpro.th2.common.schema.grpc.router.GrpcRouter
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.*
 import com.exactpro.th2.common.utils.message.toTransport
 import com.google.protobuf.ByteString
@@ -261,6 +262,10 @@ class TestAvroCodec {
         }
 
         override fun getDictionaryAliases(): Set<String> {
+            TODO("Not yet implemented")
+        }
+
+        override fun getGrpcRouter(): GrpcRouter {
             TODO("Not yet implemented")
         }
 
