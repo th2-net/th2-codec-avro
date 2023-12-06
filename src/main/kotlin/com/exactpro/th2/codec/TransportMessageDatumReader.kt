@@ -18,11 +18,6 @@ package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
 import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_ID_PREFIX
-import com.exactpro.th2.common.grpc.Message
-import com.exactpro.th2.common.grpc.Value
-import com.exactpro.th2.common.message.addField
-import com.exactpro.th2.common.value.toValue
-import com.google.protobuf.TextFormat.shortDebugString
 import org.apache.avro.Schema
 import org.apache.avro.LogicalType
 import org.apache.avro.Conversion
@@ -35,10 +30,10 @@ import java.nio.ByteBuffer
 import javax.xml.bind.DatatypeConverter
 import mu.KotlinLogging
 
-class MessageDatumReader(
+class TransportMessageDatumReader(
     schema: Schema,
     private val enableIdPrefixEnumFields: Boolean? = false,
-) : GenericDatumReader<Message.Builder>(schema, schema, getData()) {
+) : GenericDatumReader<MutableMap<String, Any>>(schema, schema, getData()) {
     @Throws(IOException::class)
     override fun readWithoutConversion(old: Any?, expected: Schema, decoder: ResolvingDecoder): Any? {
         return if (expected.type == Schema.Type.UNION) {
@@ -51,7 +46,7 @@ class MessageDatumReader(
     }
 
     @Throws(IOException::class)
-    override fun readRecord(old: Any?, expected: Schema, decoder: ResolvingDecoder): Message.Builder {
+    override fun readRecord(old: Any?, expected: Schema, decoder: ResolvingDecoder): MutableMap<String, Any> {
         val r = createRecord()
         for (f in decoder.readFieldOrder()) {
             readField(r, f, old, decoder, null)
@@ -72,8 +67,8 @@ class MessageDatumReader(
         }
         if (readValue != null) {
             val convertedValue = readValue.convertToValue()
-            LOGGER.trace { "Read value ${f.name()}: ${shortDebugString(convertedValue)} (origin: $readValue)" }
-            (r as Message.Builder).addField(fieldName, convertedValue)
+            LOGGER.trace { "Read value ${f.name()}: $convertedValue (origin: $readValue)" }
+            (r as MutableMap<String, Any>)[fieldName] = convertedValue
         }
     }
 
@@ -85,8 +80,8 @@ class MessageDatumReader(
         }
     }
 
-    private fun createRecord(): Message.Builder {
-        return Message.newBuilder()
+    private fun createRecord(): MutableMap<String, Any> {
+        return mutableMapOf()
     }
 
     @Throws(IOException::class)
@@ -101,12 +96,12 @@ class MessageDatumReader(
 
     override fun addToMap(map: Any, key: Any?, value: Any?) {
         if (value != null) {
-            (map as Message.Builder).addField(key.toString(), value.convertToValue())
+            (map as MutableMap<String, Any>)[key.toString()] = value
         }
     }
 
-    override fun newMap(old: Any?, size: Int): Message.Builder {
-        return Message.newBuilder()
+    override fun newMap(old: Any?, size: Int): MutableMap<String, Any> {
+        return mutableMapOf()
     }
 
     override fun convert(datum: Any?, schema: Schema?, type: LogicalType?, conversion: Conversion<*>?): Any {
@@ -126,18 +121,18 @@ class MessageDatumReader(
         this.get(bytes)
         return DatatypeConverter.printHexBinary(bytes)
     }
-    private fun GenericFixed.asHexString(): String = DatatypeConverter.printHexBinary(this.bytes())
-    private fun Any.convertToValue(): Value = when (this) {
-        is ByteBuffer ->
-            this.asHexString().toValue()
-        is GenericFixed ->
-            this.asHexString().toValue()
-        else -> toValue()
+
+    private fun Any.convertToValue(): Any = when (this) {
+        is ByteBuffer -> ByteArray(remaining()).also { get(it) }
+        is GenericFixed -> bytes()
+        else -> this
     }
+
     data class UnionData(
         val value: Any?,
         val description: String?
     )
+
     companion object {
         private val LOGGER = KotlinLogging.logger {}
     }

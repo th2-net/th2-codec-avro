@@ -1,4 +1,4 @@
-# AVRO codec (2.2.1)
+# AVRO codec (2.3.0)
 ## Description
 Designed for decode AVRO raw messages to parsed messages and encode back.
 It is based on [th2-codec](https://github.com/th2-net/th2-codec).
@@ -15,7 +15,7 @@ The first byte of the AVRO header is always 0(MAGIC BYTE).
 It is followed by four bytes which identify the AVRO schema to be used for decoding.
 ```text
 [0],[][][][], [][][][]][][]...[]
-    schema id  data
+    schema id  data 
 ```
 ### Schema resolution mode by session alias
 Enabled when setting `sessionAliasToDictionaryAlias` is filled.
@@ -61,6 +61,7 @@ AVRO codec has the following parameters:
 
 ```yaml
 enableIdPrefixEnumFields: false
+enablePrefixEnumFieldsDecode: true
 avroMessageIdToDictionaryAlias: 
   '1': "${dictionary_link:avro-schema-1-dictionary}"
   '2': "${dictionary_link:avro-schema-2-dictionary}"
@@ -70,6 +71,10 @@ sessionAliasToDictionaryAlias:
   'sessionGroup1Alias*': "${dictionary_link:avro-schema-2-dictionary}"
   '???????Group2Alias*': "${dictionary_link:avro-schema-3-dictionary}"
 ```
+**enablePrefixEnumFieldsDecode** - enables prefix before field name.
+If disabled no type or ID prefix will be added before field name.
+_NOTE: in this case the message decoded by codec cannot be encoded - encoding requires type or ID prefix_
+
 **enableIdPrefixEnumFields** - prefix setting for UNION fields. If `false`, use prefix as `AVRO data type`(for example `Record-`, `Map-`), if `true` then use `schema id` prefix(for example `Id0-`, `Id3-`). The default value is `false`
 
 **avroMessageIdToDictionaryAlias** - matching `schema id` pairs with its `alias` available for loading in the pipelineCodecContext.
@@ -79,6 +84,9 @@ sessionAliasToDictionaryAlias:
 Only one of settings `sessionAliasToDictionaryAlias` or `avroMessageIdToDictionaryAlias` can be used
 
 ## Release notes
+
+### 2.3.0
++ TH2 transport protocol support
 
 ### 2.2.1
 * Added detailed TRACE logging for parsing into class com.exactpro.th2.codec.MessageDatumReader

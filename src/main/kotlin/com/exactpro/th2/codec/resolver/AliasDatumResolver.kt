@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.codec.resolver
 
 import com.exactpro.th2.codec.MessageDatumReader
 import com.exactpro.th2.codec.MessageDatumWriter
+import com.exactpro.th2.codec.TransportMessageDatumReader
+import com.exactpro.th2.codec.TransportMessageDatumWriter
 import org.apache.avro.Schema
 import org.apache.commons.io.FilenameUtils
 import java.util.concurrent.locks.Lock
@@ -24,7 +27,8 @@ import java.util.concurrent.locks.ReentrantLock
 
 class AliasDatumResolver(
     aliasToSchema: Map<String, Schema>,
-    enableIdPrefixEnumFields: Boolean = false
+    enableIdPrefixEnumFields: Boolean = false,
+    enablePrefixEnumFieldsDecode: Boolean? = true,
 ) : IDatumResolver<String> {
     private val datumCache: MutableMap<String, DatumPair> = mutableMapOf()
     private val wildcardAliases: List<Alias>
@@ -35,8 +39,10 @@ class AliasDatumResolver(
             Alias(
                 it.first,
                 DatumPair(
-                    MessageDatumReader(it.second, enableIdPrefixEnumFields),
-                    MessageDatumWriter(it.second, enableIdPrefixEnumFields)
+                    MessageDatumReader(it.second, enablePrefixEnumFieldsDecode),
+                    MessageDatumWriter(it.second, enableIdPrefixEnumFields),
+                    TransportMessageDatumReader(it.second, enablePrefixEnumFieldsDecode),
+                    TransportMessageDatumWriter(it.second, enableIdPrefixEnumFields)
                 )
             )
         }.partition { isWildcard(it.wildcardAlias) }
@@ -55,15 +61,25 @@ class AliasDatumResolver(
 
     data class DatumPair(
         val reader: MessageDatumReader,
-        val writer: MessageDatumWriter
+        val writer: MessageDatumWriter,
+        val transportReader: TransportMessageDatumReader,
+        val transportWriter: TransportMessageDatumWriter
     )
 
     override fun getReader(value: String): MessageDatumReader {
         return getDatums(value)?.reader ?: throw IllegalStateException("No reader found for session alias: $value")
     }
 
+    override fun getTransportReader(value: String): TransportMessageDatumReader {
+        return getDatums(value)?.transportReader ?: throw IllegalStateException("No reader found for session alias: $value")
+    }
+
     override fun getWriter(value: String): MessageDatumWriter {
         return getDatums(value)?.writer ?: throw IllegalStateException("No writer found for session alias: $value")
+    }
+
+    override fun getTransportWriter(value: String): TransportMessageDatumWriter {
+        return getDatums(value)?.transportWriter ?: throw IllegalStateException("No writer found for session alias: $value")
     }
 
     private fun getDatums(value: String): DatumPair? {
@@ -74,7 +90,6 @@ class AliasDatumResolver(
             lock.unlock()
         }
     }
-
 
     private fun resolveAlias(alias: String): DatumPair? {
         wildcardAliases.forEach { aliasElement ->
@@ -90,5 +105,4 @@ class AliasDatumResolver(
     private fun isWildcard(value: String): Boolean {
         return (value.indexOf('?') != -1).or(value.indexOf('*') != -1)
     }
-
 }

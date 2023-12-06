@@ -16,27 +16,21 @@
 
 package com.exactpro.th2.codec
 
-import com.exactpro.th2.common.grpc.Message
-import com.exactpro.th2.common.grpc.Value
-import com.exactpro.th2.common.message.getField
-import com.exactpro.th2.common.value.getList
-import com.exactpro.th2.common.value.getMessage
-import org.apache.avro.UnresolvedUnionException
-import org.apache.avro.AvroTypeException
 import org.apache.avro.Schema
-import org.apache.avro.Conversion
+import org.apache.avro.AvroTypeException
+import org.apache.avro.UnresolvedUnionException
 import org.apache.avro.io.Encoder
 import org.apache.avro.path.TracingAvroTypeException
-import org.apache.avro.path.TracingClassCastException
 import org.apache.avro.path.TracingNullPointException
+import org.apache.avro.path.TracingClassCastException
 import org.apache.avro.path.LocationStep
 import org.apache.avro.util.SchemaUtil
 import java.io.IOException
 import java.nio.ByteBuffer
 import javax.xml.bind.DatatypeConverter
 
-class MessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = false) :
-    AbstractMessageWriter<Message>(schema, enableIdPrefixEnumFields) {
+class TransportMessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = false) :
+    AbstractMessageWriter<Map<String, Any?>>(schema, enableIdPrefixEnumFields) {
     @Throws(IOException::class)
     override fun writeField(datum: Any?, f: Schema.Field, out: Encoder, state: Any?) {
         val value = resolveUnionValue(f, datum)
@@ -59,20 +53,21 @@ class MessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = fal
     }
 
     private fun resolveUnionValue(f: Schema.Field, datum: Any?): Any? {
+        @Suppress("UNCHECKED_CAST")
+        val map = (datum as Map<String, Any?>)
         if (f.schema().type == Schema.Type.UNION) {
             val fieldName =
-                (datum as Message).fieldsMap.keys.firstOrNull { s -> s.endsWith("$UNION_FIELD_NAME_TYPE_DELIMITER${f.name()}") }
-            val unionValue = if (fieldName == null) null else datum.getField(fieldName)
+                map.keys.firstOrNull { s -> s.endsWith("$UNION_FIELD_NAME_TYPE_DELIMITER${f.name()}") }
+            val unionValue = if (fieldName == null) null else map[fieldName]
             return Pair(resolveUnion(f.schema(), fieldName, unionValue), unionValue)
-
         }
-        return (datum as Message).getField(f.name())
+        return map[f.name()]
     }
 
     @Throws(IOException::class)
     override fun writeRecord(schema: Schema, datum: Any?, out: Encoder) {
         for (field in schema.fields) {
-            writeField(if (datum is Value && datum.hasMessageValue()) datum.getMessage() else datum, field, out, null)
+            writeField(datum, field, out, null)
         }
     }
 
@@ -83,8 +78,8 @@ class MessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = fal
             when (schemaType) {
                 Schema.Type.RECORD -> writeRecord(schema, datum, out)
                 Schema.Type.ENUM -> writeEnum(schema, datum, out)
-                Schema.Type.ARRAY -> writeArray(schema, (datum as Value).getList(), out)
-                Schema.Type.MAP -> writeMap(schema, (datum as Value).getMessage(), out)
+                Schema.Type.ARRAY -> writeArray(schema, datum, out)
+                Schema.Type.MAP -> writeMap(schema, datum, out)
                 Schema.Type.UNION -> {
                     val (unionIndex, value) = datum as Pair<*, *>
                     out.writeIndex(unionIndex as Int)
@@ -92,33 +87,64 @@ class MessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = fal
                         write(schema.types[unionIndex], value, out)
                     }
                 }
-                Schema.Type.FIXED -> writeFixed(schema, datum, out)
-                Schema.Type.STRING -> if (datum is Value) writeString(schema, datum.simpleValue.toString(), out)
-                Schema.Type.BYTES -> writeBytes(datum, out)
-                Schema.Type.INT -> {
-                    when (datum) {
-                        is Value -> out.writeInt(datum.simpleValue.toInt())
-                        is Int -> out.writeInt(datum)
+
+                Schema.Type.FIXED -> {
+                    val bytes = when (datum) {
+                        is ByteArray -> datum
+                        is String -> DatatypeConverter.parseHexBinary(datum)
                         else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
                     }
+                    writeFixed(schema, bytes, out)
+                }
+                Schema.Type.STRING -> writeString(schema, datum as String, out)
+                Schema.Type.BYTES -> writeBytes(datum, out)
+                Schema.Type.INT -> {
+                    val int = when (datum) {
+                        is Int -> datum
+                        is String -> datum.toInt()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
+                    }
+                    out.writeInt(int)
                 }
 
                 Schema.Type.LONG -> {
-                    when (datum) {
-                        is Value -> out.writeLong(datum.simpleValue.toLong())
-                        is Long -> out.writeLong(datum)
+                    val long = when (datum) {
+                        is Long -> datum
+                        is String -> datum.toLong()
                         else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
                     }
-
+                    out.writeLong(long)
                 }
 
-                Schema.Type.FLOAT -> out.writeFloat((datum as Value).simpleValue.toFloat())
-                Schema.Type.DOUBLE -> out.writeDouble((datum as Value).simpleValue.toDouble())
-                Schema.Type.BOOLEAN -> out.writeBoolean((datum as Value).simpleValue.toBoolean())
+                Schema.Type.FLOAT -> {
+                    val float = when (datum) {
+                        is Float -> datum
+                        is String -> datum.toFloat()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
+                    }
+                    out.writeFloat(float)
+                }
+
+                Schema.Type.DOUBLE -> {
+                    val double = when (datum) {
+                        is Double -> datum
+                        is String -> datum.toDouble()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
+                    }
+                    out.writeDouble(double)
+                }
+
+                Schema.Type.BOOLEAN -> {
+                    val boolean = when (datum) {
+                        is Boolean -> datum
+                        is String -> datum.toBoolean()
+                        else -> throw AvroTypeException(String.format(FORMAT_TYPE_ERROR, datum.javaClass, schemaType.name))
+                    }
+                    out.writeBoolean(boolean)
+                }
+
                 Schema.Type.NULL -> out.writeNull()
-                else -> throw AvroTypeException(
-                    "Value ${SchemaUtil.describe(datum)} is not a ${SchemaUtil.describe(schema)}"
-                )
+                else -> throw AvroTypeException("Value ${SchemaUtil.describe(datum)} is not a ${SchemaUtil.describe(schema)}")
             }
         } catch (e: Exception) {
             when (e) {
@@ -132,41 +158,40 @@ class MessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = fal
 
     @Throws(IOException::class)
     override fun writeEnum(schema: Schema, datum: Any, out: Encoder) {
-        out.writeEnum(schema.getEnumOrdinal((datum as Value).simpleValue.toString()))
+        out.writeEnum(schema.getEnumOrdinal(datum as String))
     }
 
-    override fun getMapSize(map: Any): Int {
-        return (map as Message).fieldsCount
-    }
-
-    override fun getMapEntries(map: Any): Iterable<Map.Entry<Any?, Any?>?> {
-        return (map as Message).fieldsMap.entries
-    }
+    override fun getMapSize(map: Any): Int = (map as Map<*, *>).size
+    override fun getMapEntries(map: Any): Iterable<Map.Entry<Any?, Any?>?> = (map as Map<*, *>).entries
 
     @Throws(IOException::class)
     override fun writeFixed(schema: Schema, datum: Any, out: Encoder) {
-        out.writeFixed(DatatypeConverter.parseHexBinary((datum as Value).simpleValue.toString()), 0, schema.fixedSize)
+        out.writeFixed(datum as ByteArray, 0, schema.fixedSize)
     }
 
     @Throws(IOException::class)
     override fun writeBytes(datum: Any, out: Encoder) {
         when(datum){
-            is Value -> out.writeBytes(DatatypeConverter.parseHexBinary(datum.simpleValue.toString()))
             is ByteBuffer -> {
                 val bytes = ByteArray(datum.remaining())
                 datum.get(bytes)
                 out.writeBytes(bytes)
             }
+            is ByteArray -> out.writeBytes(datum)
+            is String -> out.writeBytes(DatatypeConverter.parseHexBinary(datum))
+            else -> throw AvroTypeException("Class ${datum::class.java} is not supported}")
         }
     }
 
     @Throws(IOException::class)
     override fun write(schema: Schema, datum: Any, out: Encoder) {
         val value = schema.logicalType?.let {
-            val simpleValue = (datum as Value).simpleValue
-            val convertedValue = convertFieldValue(simpleValue, it.name)
-            val conversion: Conversion<*> = data.getConversionByClass(convertedValue.javaClass, it)
-            convert(schema, it, conversion, convertedValue)
+            val convertedValue = if (datum is String) {
+                convertFieldValue(datum, it.name)
+            } else {
+                datum
+            }
+            convert(schema, it, data.getConversionByClass(convertedValue.javaClass, it), convertedValue)
         } ?: datum
 
         writeWithoutConversion(schema, value, out)

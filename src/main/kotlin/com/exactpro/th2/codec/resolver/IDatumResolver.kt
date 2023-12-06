@@ -17,9 +17,13 @@ package com.exactpro.th2.codec.resolver
 
 import com.exactpro.th2.codec.MessageDatumReader
 import com.exactpro.th2.codec.MessageDatumWriter
+import com.exactpro.th2.codec.TransportMessageDatumReader
+import com.exactpro.th2.codec.TransportMessageDatumWriter
 
 interface IDatumResolver<in T> {
     fun getReader(value: T): MessageDatumReader
+    fun getTransportReader(value: T): TransportMessageDatumReader
 
     fun getWriter(value: T): MessageDatumWriter
+    fun getTransportWriter(value: T): TransportMessageDatumWriter
 }

@@ -13,38 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.codec.resolver
 
 import com.exactpro.th2.codec.MessageDatumReader
 import com.exactpro.th2.codec.MessageDatumWriter
+import com.exactpro.th2.codec.TransportMessageDatumReader
+import com.exactpro.th2.codec.TransportMessageDatumWriter
 import org.apache.avro.Schema
 
 class SchemaIdDatumResolver(
     schemaIdToSchema: Map<Int, Schema>,
-    enableIdPrefixEnumFields: Boolean = false
+    enableIdPrefixEnumFields: Boolean = false,
+    enablePrefixEnumFieldsDecode: Boolean? = true,
 ) : IDatumResolver<Int> {
+
     private val datumReaders = schemaIdToSchema.mapValues {
-        MessageDatumReader(
-            it.value,
-            enableIdPrefixEnumFields
-        )
+        MessageDatumReader(it.value, enablePrefixEnumFieldsDecode)
     }
+
+    private val transportDatumReaders = schemaIdToSchema.mapValues {
+        TransportMessageDatumReader(it.value, enablePrefixEnumFieldsDecode)
+    }
+
     private val datumWriters = schemaIdToSchema.mapValues {
-        MessageDatumWriter(
-            it.value,
-            enableIdPrefixEnumFields
-        )
+        MessageDatumWriter(it.value, enableIdPrefixEnumFields)
     }
+
+    private val transportDatumWriters = schemaIdToSchema.mapValues {
+        TransportMessageDatumWriter(it.value, enableIdPrefixEnumFields)
+    }
+
     private val schemaIdToMessageName = checkSchemaNames(schemaIdToSchema.mapValues { it.value.name })
     private val messageNameToSchemaId = schemaIdToMessageName.entries.associate { (key, value) -> value to key }
 
 
     override fun getReader(value: Int): MessageDatumReader {
-        return checkNotNull(datumReaders[value]) { "No reader found for schema id: $value" }
+        return checkNotNull(datumReaders[value]) { "No proto reader found for schema id: $value" }
+    }
+
+    override fun getTransportReader(value: Int): TransportMessageDatumReader {
+        return checkNotNull(transportDatumReaders[value]) { "No transport reader found for schema id: $value" }
     }
 
     override fun getWriter(value: Int): MessageDatumWriter {
-        return checkNotNull(datumWriters[value]) { "No writer found for schema id: $value" }
+        return checkNotNull(datumWriters[value]) { "No proto writer found for schema id: $value" }
+    }
+
+    override fun getTransportWriter(value: Int): TransportMessageDatumWriter {
+        return checkNotNull(transportDatumWriters[value]) { "No transport writer found for schema id: $value" }
     }
 
     fun getSchemaId(messageName: String): Int {
