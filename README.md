@@ -1,4 +1,4 @@
-# AVRO codec (2.3.0)
+# AVRO codec (2.4.0)
 ## Description
 Designed for decode AVRO raw messages to parsed messages and encode back.
 It is based on [th2-codec](https://github.com/th2-net/th2-codec).
@@ -85,6 +85,11 @@ Only one of settings `sessionAliasToDictionaryAlias` or `avroMessageIdToDictiona
 
 ## Release notes
 
+### 2.4.0
++ Updated common: `5.7.2-dev`
++ Updated common-utils: `2.2.2-dev`
++ Updated codec: `5.4.1-dev`
+
 ### 2.3.0
 + TH2 transport protocol support
 
@@ -96,9 +101,9 @@ Only one of settings `sessionAliasToDictionaryAlias` or `avroMessageIdToDictiona
 + Added support wildcard for session alias setting
 
 ### 2.1.0
-+ th2-common `5.2.0`
-+ th2-codec `5.2.0`
-+ th2-bom `4.2.0`
++ Updated th2-common: `5.2.0`
++ Updated th2-codec: `5.2.0`
++ Updated th2-bom: `4.2.0`
 + owasp scan step
 
 ### 2.0.0
