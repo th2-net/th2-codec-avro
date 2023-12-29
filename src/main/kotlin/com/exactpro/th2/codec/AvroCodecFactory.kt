@@ -25,7 +25,6 @@ import org.apache.avro.Schema.Parser
 class AvroCodecFactory : IPipelineCodecFactory {
     private lateinit var codecContext: IPipelineCodecContext
 
-
     override val protocols: Set<String>
         get() = PROTOCOLS
 
