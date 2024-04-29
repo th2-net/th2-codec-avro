@@ -93,6 +93,7 @@ Only one of settings `sessionAliasToDictionaryAlias` or `avroMessageIdToDictiona
   + bom `4.6.1`
   + common: `5.10.1-dev`
   + common-utils: `2.2.3-dev`
+  + codec: `5.5.0-dev`
   + avro: `1.11.3`
 
 ### 2.4.0
