@@ -73,10 +73,6 @@ test {
     useJUnitPlatform()
 }
 
-jmh {
-    //profilers = ['stack'] // Use profilers to collect additional data. Supported profilers: [cl, comp, gc, stack, perf, perfnorm, perfasm, xperf, xperfasm, hs_cl, hs_comp, hs_gc, hs_rt, hs_thr, async]
-}
-
 dependencyCheck {
     suppressionFile='supressions.xml'
 }
