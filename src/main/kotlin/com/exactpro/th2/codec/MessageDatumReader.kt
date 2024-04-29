@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.value.toValue
 import com.google.protobuf.TextFormat.shortDebugString
+import jakarta.xml.bind.DatatypeConverter
 import org.apache.avro.Schema
 import org.apache.avro.LogicalType
 import org.apache.avro.Conversion
@@ -32,7 +33,6 @@ import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
 import java.io.IOException
 import java.nio.ByteBuffer
-import javax.xml.bind.DatatypeConverter
 import mu.KotlinLogging
 
 class MessageDatumReader(

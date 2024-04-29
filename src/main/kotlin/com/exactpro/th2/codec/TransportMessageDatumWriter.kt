@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.codec
 
+import jakarta.xml.bind.DatatypeConverter
 import org.apache.avro.Schema
 import org.apache.avro.AvroTypeException
 import org.apache.avro.UnresolvedUnionException
@@ -27,7 +28,6 @@ import org.apache.avro.path.LocationStep
 import org.apache.avro.util.SchemaUtil
 import java.io.IOException
 import java.nio.ByteBuffer
-import javax.xml.bind.DatatypeConverter
 
 class TransportMessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = false) :
     AbstractMessageWriter<Map<String, Any?>>(schema, enableIdPrefixEnumFields) {
