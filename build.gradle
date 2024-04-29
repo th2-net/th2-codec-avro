@@ -1,5 +1,6 @@
 plugins {
     id "org.jetbrains.kotlin.jvm" version "1.8.22"
+    id "org.jetbrains.kotlin.kapt" version "1.8.22"
     id("java-library")
     id("maven-publish")
 
@@ -8,8 +9,6 @@ plugins {
 
     id "me.champeau.jmh" version "0.7.2"
 }
-
-apply plugin: 'kotlin-kapt'
 
 group = 'com.exactpro.th2'
 version = release_version
