@@ -3,7 +3,6 @@ plugins {
     id("java-library")
     id("maven-publish")
 
-    id "com.exactpro.th2.gradle.base" version "0.0.6"
     id "com.exactpro.th2.gradle.publish" version "0.0.6"
 
     id "me.champeau.jmh" version "0.7.2"
@@ -39,7 +38,11 @@ dependencies {
     implementation "jakarta.xml.bind:jakarta.xml.bind-api:4.0.2"
 
 
-    implementation 'org.apache.avro:avro:1.11.3'
+    implementation'org.apache.avro:avro:1.11.3'
+    implementation('org.apache.commons:commons-compress:1.26.1') {
+        because("commons-compress:1.22 transitive dependency of avro:1.11.3 has vulnerabilities")
+    }
+
     implementation 'commons-io:commons-io'
 
     implementation "io.github.microutils:kotlin-logging:3.0.5"
@@ -63,4 +66,8 @@ test {
 
 jmh {
     //profilers = ['stack'] // Use profilers to collect additional data. Supported profilers: [cl, comp, gc, stack, perf, perfnorm, perfasm, xperf, xperfasm, hs_cl, hs_comp, hs_gc, hs_rt, hs_thr, async]
+}
+
+dependencyCheck {
+    suppressionFile='supressions.xml'
 }
