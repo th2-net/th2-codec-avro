@@ -1,4 +1,4 @@
-# AVRO codec (2.5.0)
+# AVRO codec (3.0.0)
 ## Description
 Designed for decode AVRO raw messages to parsed messages and encode back.
 It is based on [th2-codec](https://github.com/th2-net/th2-codec).
