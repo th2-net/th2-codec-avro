@@ -1,4 +1,4 @@
-# AVRO codec (2.4.0)
+# AVRO codec (3.0.0)
 ## Description
 Designed for decode AVRO raw messages to parsed messages and encode back.
 It is based on [th2-codec](https://github.com/th2-net/th2-codec).
@@ -84,6 +84,17 @@ _NOTE: in this case the message decoded by codec cannot be encoded - encoding re
 Only one of settings `sessionAliasToDictionaryAlias` or `avroMessageIdToDictionaryAlias` can be used
 
 ## Release notes
+
+### 3.0.0
++ Migrated from jaxb-api: `2.3.1` to jakarta.xml.bind-api: `4.0.2`
+  + Because artifact was moved
++ Migrated to th2 gradle plugin: `0.0.6`
++ Updated:
+  + bom `4.6.1`
+  + common: `5.10.1-dev`
+  + common-utils: `2.2.3-dev`
+  + codec: `5.5.0-dev`
+  + avro: `1.11.3`
 
 ### 2.4.0
 + Updated common: `5.7.2-dev`

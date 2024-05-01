@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.getField
 import com.exactpro.th2.common.value.getList
 import com.exactpro.th2.common.value.getMessage
+import jakarta.xml.bind.DatatypeConverter
 import org.apache.avro.UnresolvedUnionException
 import org.apache.avro.AvroTypeException
 import org.apache.avro.Schema
@@ -33,7 +34,6 @@ import org.apache.avro.path.LocationStep
 import org.apache.avro.util.SchemaUtil
 import java.io.IOException
 import java.nio.ByteBuffer
-import javax.xml.bind.DatatypeConverter
 
 class MessageDatumWriter(schema: Schema, enableIdPrefixEnumFields: Boolean = false) :
     AbstractMessageWriter<Message>(schema, enableIdPrefixEnumFields) {

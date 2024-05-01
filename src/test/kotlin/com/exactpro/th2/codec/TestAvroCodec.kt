@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import com.exactpro.th2.common.utils.message.toTransport
 import com.google.protobuf.ByteString
 import io.netty.buffer.Unpooled
 import com.google.protobuf.UnsafeByteOperations
+import jakarta.xml.bind.DatatypeConverter
 import org.apache.avro.Schema.Parser
 import org.apache.avro.generic.GenericDatumWriter
 import org.apache.avro.io.BinaryEncoder
@@ -41,7 +42,6 @@ import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
-import javax.xml.bind.DatatypeConverter
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Disabled
 import java.time.Instant
@@ -49,6 +49,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertContentEquals
 import kotlin.test.assertTrue
 
+@Suppress("SpellCheckingInspection")
 class TestAvroCodec {
     private val pipelineCodecContext = CodecContext()
     private val codecFactory: AvroCodecFactory = AvroCodecFactory().apply {init(pipelineCodecContext)}
@@ -176,7 +177,7 @@ class TestAvroCodec {
 
         // transport decode
         val transportDecodeGroup = transportDecode(rawBytes, sessionAlias)
-        assertEquals(expected, (transportDecodeGroup.messages[0].body as Map<String, Any>).size)
+        assertEquals(expected, (transportDecodeGroup.messages[0].body as Map<*, *>).size)
 
         // transport encode
         val transportEncoded = transportEncode(transportDecodeGroup)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,12 +32,12 @@ import com.google.protobuf.UnsafeByteOperations
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.ByteBufUtil
 import io.netty.buffer.Unpooled
+import jakarta.xml.bind.DatatypeConverter
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.Encoder
 import org.apache.avro.io.EncoderFactory
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import javax.xml.bind.DatatypeConverter
 import com.exactpro.th2.common.grpc.AnyMessage as ProtoAnyMessage
 import com.exactpro.th2.common.grpc.Message as ProtoMessage
 import com.exactpro.th2.common.grpc.MessageGroup as ProtoMessageGroup
