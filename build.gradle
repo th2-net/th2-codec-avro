@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    implementation "com.exactpro.th2:common:5.10.1-dev"
+    implementation "com.exactpro.th2:common:5.14.0-TH2-1988-9837950939-6b5c84a-SNAPSHOT"
     implementation "com.exactpro.th2:common-utils:2.2.3-dev"
     implementation "com.exactpro.th2:codec:5.5.0-dev"
     implementation "jakarta.xml.bind:jakarta.xml.bind-api:4.0.2"
