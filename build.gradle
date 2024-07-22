@@ -38,7 +38,7 @@ repositories {
 dependencies {
     implementation "com.exactpro.th2:common:5.10.1-dev"
     implementation "com.exactpro.th2:common-utils:2.2.3-dev"
-    implementation "com.exactpro.th2:codec:5.5.0-dev"
+    implementation "com.exactpro.th2:codec:5.6.0-th2-gradle-plugin-0.1.1-10038884311-85c9dab-SNAPSHOT"
     implementation "jakarta.xml.bind:jakarta.xml.bind-api:4.0.2"
 
 
