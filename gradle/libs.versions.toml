@@ -1,0 +1,28 @@
+[versions]
+kotlin = "2.1.10"
+th2-plugin = "0.2.4"
+jmh = "1.37"
+
+[libraries]
+th2-common = { group = "com.exactpro.th2", name = "common", version = "5.15.0-dev" }
+th2-common-utils = { group = "com.exactpro.th2", name = "common-utils", version = "2.3.1-dev" }
+th2-codec = { group = "com.exactpro.th2", name = "codec", version = "5.5.0-dev" }
+
+jakarta-xml-bind-api = { group = "jakarta.xml.bind", name = "jakarta.xml.bind-api", version = "4.0.2" }
+avro = { group = "org.apache.avro", name = "avro", version = "1.12.0" }
+
+kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version = "7.0.5" }
+auto-service = { group = "com.google.auto.service", name = "auto-service", version = "1.1.1" }
+jmh-core = { group = "org.openjdk.jmh", name = "jmh-core", version.ref = "jmh" }
+jmh-generator-annprocess = { group = "org.openjdk.jmh", name = "jmh-generator-annprocess", version.ref = "jmh" }
+
+junit-bom = { group = "org.junit", name = "junit-bom", version = "5.12.1" }
+strikt-core = { group = "io.strikt", name = "strikt-core", version = "0.34.1" } # jvm > 11 is required for versins after 0.34.1
+mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version = "5.3.1" } # kotlin > 1.8.22 is required for versins after 5.3.1
+
+[plugins]
+th2-publish = { id = "com.exactpro.th2.gradle.publish", version.ref = "th2-plugin" }
+th2-component = { id = "com.exactpro.th2.gradle.component", version.ref = "th2-plugin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+jmh = { id = "me.champeau.jmh", version = "0.7.3" }

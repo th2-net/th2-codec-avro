@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023-2025 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,17 @@ package com.exactpro.th2.codec
 
 import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_FIELD_NAME_TYPE_DELIMITER
 import com.exactpro.th2.codec.AbstractMessageWriter.Companion.UNION_ID_PREFIX
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.xml.bind.DatatypeConverter
-import org.apache.avro.Schema
-import org.apache.avro.LogicalType
 import org.apache.avro.Conversion
+import org.apache.avro.LogicalType
+import org.apache.avro.Schema
 import org.apache.avro.generic.GenericDatumReader
 import org.apache.avro.generic.GenericFixed
 import org.apache.avro.io.Decoder
 import org.apache.avro.io.ResolvingDecoder
 import java.io.IOException
 import java.nio.ByteBuffer
-import mu.KotlinLogging
 
 class TransportMessageDatumReader(
     schema: Schema,
@@ -106,7 +106,7 @@ class TransportMessageDatumReader(
 
     override fun convert(datum: Any?, schema: Schema?, type: LogicalType?, conversion: Conversion<*>?): Any {
         val convertedValue = super.convert(datum, schema, type, conversion)
-        if(LOGGER.isTraceEnabled) {
+        if(LOGGER.isTraceEnabled()) {
             val rawValueString = when(datum) {
                 is ByteBuffer -> datum.asHexString()
                 else -> datum.toString()
