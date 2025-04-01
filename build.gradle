@@ -34,13 +34,8 @@ dependencies {
 
 
     implementation(libs.avro)
-    implementation('org.apache.commons:commons-compress:1.26.1') {
-        because("commons-compress:1.22 transitive dependency of avro:1.11.3 has vulnerabilities")
-    }
-
-    implementation 'commons-io:commons-io'
-
     implementation(libs.kotlin.logging)
+    implementation 'commons-io:commons-io'
 
     compileOnly(libs.auto.service)
     kapt(libs.auto.service)
