@@ -34,7 +34,7 @@ dependencies {
 
 
     implementation(libs.avro)
-    implementation('org.apache.commons:commons-compress:1.26.1') {
+    implementation('org.apache.commons:commons-compress:1.27.1') {
         because("commons-compress:1.22 transitive dependency of avro:1.11.3 has vulnerabilities")
     }
 
