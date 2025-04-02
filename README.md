@@ -86,15 +86,15 @@ Only one of settings `sessionAliasToDictionaryAlias` or `avroMessageIdToDictiona
 ## Release notes
 
 ### 3.1.0
++ Migrated from io.github.microutils to io.github.oshai for kotlin-logging
 + Updated:
   + th2-common: `2.15.0-dev`
   + th2-common-utils: `2.3.1-dev`
   + avro: `1.12.0`
-  + kotlin-logging: `7.0.5`
 + Updated gradle plugins:
   + th2 gradle plugin: `0.2.4` (bom: `4.11.0`)
-  + kotlin: `2.1.10`
-  + jmh: `1.37`
+  + kotlin: `2.1.20`
+  + jmh: `0.7.3`
 
 ### 3.0.0
 + Migrated from jaxb-api: `2.3.1` to jakarta.xml.bind-api: `4.0.2`
