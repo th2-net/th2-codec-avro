@@ -11,7 +11,7 @@ th2-codec = { group = "com.exactpro.th2", name = "codec", version = "5.5.0-dev" 
 jakarta-xml-bind-api = { group = "jakarta.xml.bind", name = "jakarta.xml.bind-api", version = "4.0.2" }
 avro = { group = "org.apache.avro", name = "avro", version = "1.12.0" }
 
-kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version = "7.0.7" }
+kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version = "7.0.10" }
 auto-service = { group = "com.google.auto.service", name = "auto-service", version = "1.1.1" }
 jmh-core = { group = "org.openjdk.jmh", name = "jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { group = "org.openjdk.jmh", name = "jmh-generator-annprocess", version.ref = "jmh" }
