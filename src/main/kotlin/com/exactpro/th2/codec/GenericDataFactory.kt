@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023-2025 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,4 +29,5 @@ fun getData(): GenericData = GenericData.get().apply {
         addLogicalTypeConversion(TimeConversions.TimestampMicrosConversion())
         addLogicalTypeConversion(TimeConversions.LocalTimestampMillisConversion())
         addLogicalTypeConversion(TimeConversions.LocalTimestampMicrosConversion())
+        setFastReaderEnabled(false) // default value was changed from false to true since org.apache.avro:avro:1.12.1
     }
