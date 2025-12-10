@@ -14,10 +14,6 @@ version = release_version
 
 repositories {
     mavenCentral()
-    maven {
-        name 'Sonatype_releases'
-        url 'https://s01.oss.sonatype.org/content/repositories/releases/'
-    }
     mavenLocal()
 
     configurations.configureEach {
@@ -27,7 +23,6 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.th2.common)
     implementation(libs.th2.common.utils)
     implementation(libs.th2.codec)
     implementation(libs.jakarta.xml.bind.api)
