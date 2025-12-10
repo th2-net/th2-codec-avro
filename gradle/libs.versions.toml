@@ -15,7 +15,7 @@ auto-service = { group = "com.google.auto.service", name = "auto-service", versi
 jmh-core = { group = "org.openjdk.jmh", name = "jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { group = "org.openjdk.jmh", name = "jmh-generator-annprocess", version.ref = "jmh" }
 
-junit-bom = { group = "org.junit", name = "junit-bom", version = "5.13.4" }
+junit-bom = { group = "org.junit", name = "junit-bom", version = "5.14.1" }
 strikt-core = { group = "io.strikt", name = "strikt-core", version = "0.34.1" } # jvm > 11 is required for versins after 0.34.1
 mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version = "6.1.0" } # kotlin > 1.8.22 is required for versins after 6.1.0
 
