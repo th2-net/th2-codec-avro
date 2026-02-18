@@ -111,7 +111,7 @@ class MessageDatumReader(
 
     override fun convert(datum: Any?, schema: Schema?, type: LogicalType?, conversion: Conversion<*>?): Any {
         val convertedValue = super.convert(datum, schema, type, conversion)
-        if(LOGGER.isTraceEnabled) {
+        if(LOGGER.isTraceEnabled()) {
             val rawValueString = when(datum) {
                 is ByteBuffer -> datum.asHexString()
                 else -> datum.toString()
